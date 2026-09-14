@@ -3,6 +3,7 @@ import { Sidebar, ActiveTab } from './components/Sidebar';
 import { Header } from './components/Header';
 import { ChatInterface, Message } from './components/ChatInterface';
 import { AgentTracePanel, TraceStep } from './components/AgentTracePanel';
+import { DataSourcesPage } from './pages/DataSourcesPage';
 import { KnowledgeBasePage } from './pages/KnowledgeBasePage';
 import { MemoriesPage } from './pages/MemoriesPage';
 import { AgentRunsPage } from './pages/AgentRunsPage';
@@ -135,6 +136,7 @@ export const App: React.FC = () => {
               onSendMessage={handleSendMessage}
             />
           )}
+          {activeTab === 'sources' && <DataSourcesPage />}
           {activeTab === 'knowledge' && <KnowledgeBasePage />}
           {activeTab === 'memories' && <MemoriesPage />}
           {activeTab === 'runs' && <AgentRunsPage />}

@@ -2,6 +2,7 @@ import React from 'react';
 import { 
   MessageSquare, 
   Database, 
+  Server,
   Brain, 
   Activity, 
   Settings, 
@@ -10,7 +11,7 @@ import {
   Bot
 } from 'lucide-react';
 
-export type ActiveTab = 'chat' | 'knowledge' | 'memories' | 'runs' | 'settings';
+export type ActiveTab = 'chat' | 'sources' | 'knowledge' | 'memories' | 'runs' | 'settings';
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -21,6 +22,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onNewChat }) => {
   const navItems = [
     { id: 'chat', label: 'Chat Assistant', icon: MessageSquare },
+    { id: 'sources', label: 'Data Sources', icon: Server },
     { id: 'knowledge', label: 'Knowledge Base', icon: Database },
     { id: 'memories', label: 'Long-Term Memory', icon: Brain },
     { id: 'runs', label: 'Agent Runs Trace', icon: Activity },
