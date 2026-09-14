@@ -54,9 +54,22 @@ async function startServer() {
       console.warn('⚠️ DB init failed on startup, server will proceed. Ensure Docker is running:', err.message);
     });
 
+    server.on('error', (err: any) => {
+      if (err.code === 'EADDRINUSE') {
+        console.error(`❌ Port ${config.port} is already in use! Please terminate process on port ${config.port}.`);
+      }
+    });
+
     server.listen(config.port, () => {
       console.log(`🚀 Veridex Agentic RAG Server listening on http://localhost:${config.port}`);
       console.log(`⚡ WebSocket Server initialized via Socket.IO`);
+    });
+
+    process.on('SIGTERM', () => {
+      server.close();
+    });
+    process.on('SIGINT', () => {
+      server.close();
     });
   } catch (error) {
     console.error('Failed to start server:', error);
