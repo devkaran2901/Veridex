@@ -25,9 +25,15 @@ export interface DatasetMetadata {
   name: string;
   source: string;
   description: string;
-  category: 'weather' | 'disaster' | 'rainfall' | 'agriculture' | 'general';
+  category: 'weather' | 'disaster' | 'rainfall' | 'agriculture' | 'water' | 'general';
+  apiAvailable: boolean;
+  schema?: string[];
+  geography?: string;
+  updateFrequency?: string;
+  sourceUrl?: string;
   lastSyncedAt?: Date;
   recordCount: number;
+  isMock?: boolean;
 }
 
 export interface DatasetProvider {
@@ -35,5 +41,11 @@ export interface DatasetProvider {
   name: string;
   source: string;
   description: string;
+  category: 'weather' | 'disaster' | 'rainfall' | 'agriculture' | 'water' | 'general';
+  isMock?: boolean;
+  searchDatasets?(query: string): Promise<DatasetMetadata[]>;
+  getDatasetMetadata?(datasetId: string): Promise<DatasetMetadata | null>;
+  fetchDataset?(datasetId: string, params?: Record<string, any>): Promise<KnowledgeRecordInput[]>;
   fetchLatestData(): Promise<KnowledgeRecordInput[]>;
 }
+

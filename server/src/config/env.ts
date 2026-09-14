@@ -20,4 +20,7 @@ export const config = {
   groqApiKey: process.env.GROQ_API_KEY || '',
   openRouterApiKey: process.env.OPENROUTER_API_KEY || '',
   weatherApiKey: process.env.WEATHER_API_KEY || 'mock-key',
+  datagovApiKey: process.env.DATAGOV_API_KEY || '',
+  demoMode: process.env.DEMO_MODE === 'true',
 };
+

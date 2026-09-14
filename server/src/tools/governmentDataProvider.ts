@@ -1,4 +1,6 @@
 import { query } from '../database/db';
+import { ingestLiveRecord } from '../ingestion/ingestionPipeline';
+
 
 export interface GovernmentAdvisory {
   topic: string;
@@ -65,8 +67,34 @@ export async function getGovernmentData(
     console.warn('Gov data cache write failed:', err);
   }
 
+  // Ingest into Knowledge Layer (pgvector + knowledge_records)
+  try {
+    await ingestLiveRecord({
+      source: 'NDMA (National Disaster Management Authority)',
+      sourceType: 'api_feed',
+      datasetId: 'ndma_flood_advisory_2026',
+      title: `NDMA Advisory Bulletin - ${advisory.topic} (${advisory.location})`,
+      content: `NDMA Official Bulletin (${advisory.issuingAuthority}): ${advisory.summary} Directives: ${advisory.bulletins.join(' ')}`,
+      structuredData: {
+        topic: advisory.topic,
+        location: advisory.location,
+        advisoryLevel: advisory.advisoryLevel,
+        bulletins: advisory.bulletins,
+      },
+      metadata: {
+        issuingAuthority: advisory.issuingAuthority,
+        sourceUrl: 'https://ndma.gov.in',
+      },
+      validFrom: new Date(),
+    });
+  } catch (err) {
+    // Silent catch for ingestion error
+  }
+
+
   return advisory;
 }
+
 
 export function getCurrentTime(): string {
   return new Date().toLocaleString('en-US', {

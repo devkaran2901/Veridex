@@ -11,18 +11,36 @@ import { query } from '../database/db';
 
 const DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000001';
 
+import { fetchDatasetRecords } from '../ingestion/discovery/datasetRegistry';
+
 /**
- * Government Dataset Discovery Tool Definition
+ * Government Dataset Discovery Tool Definition (FIX #3)
  */
 export const datasetDiscoveryTool = new DynamicStructuredTool({
   name: 'discoverGovernmentDatasets',
-  description: 'Search and discover available Indian government datasets (IMD weather, data.gov.in rainfall statistics, NDMA disaster guidelines).',
+  description: 'Search and discover available Indian government open datasets (data.gov.in, IMD met feeds, NDMA advisories). Returns metadata, categories, API availability, and schemas.',
   schema: z.object({
     query: z.string().describe('Search query regarding weather, rainfall, or government datasets'),
   }),
   func: async ({ query: queryText }) => {
-    const datasets = discoverDatasets(queryText);
+    const datasets = await discoverDatasets(queryText);
     return JSON.stringify(datasets);
+  },
+});
+
+/**
+ * Government Dataset Data Retrieval Tool Definition (FIX #4)
+ */
+export const fetchDatasetTool = new DynamicStructuredTool({
+  name: 'fetchGovernmentDataset',
+  description: 'Fetch raw records for a specific government dataset ID and continuously ingest them into the knowledge layer.',
+  schema: z.object({
+    datasetId: z.string().describe('The dataset ID discovered from discoverGovernmentDatasets, e.g. "punjab_rainfall_stat"'),
+  }),
+  func: async ({ datasetId }) => {
+    const records = await fetchDatasetRecords(datasetId);
+    const report = await runIngestionPipeline(datasetId);
+    return JSON.stringify({ fetchedCount: records.length, ingestionReport: report, sampleRecords: records.slice(0, 2) });
   },
 });
 
@@ -57,6 +75,7 @@ export const triggerIngestionTool = new DynamicStructuredTool({
     return JSON.stringify(report);
   },
 });
+
 
 /**
  * Weather API Tool Definition
@@ -177,6 +196,7 @@ export const currentTimeTool = new DynamicStructuredTool({
 
 export const ALL_AGENT_TOOLS = [
   datasetDiscoveryTool,
+  fetchDatasetTool,
   liveKnowledgeSearchTool,
   triggerIngestionTool,
   weatherTool,
@@ -187,3 +207,4 @@ export const ALL_AGENT_TOOLS = [
   dbQueryTool,
   currentTimeTool,
 ];
+

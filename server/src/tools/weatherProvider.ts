@@ -1,5 +1,7 @@
 import { query } from '../database/db';
 import { config } from '../config/env';
+import { ingestLiveRecord } from '../ingestion/ingestionPipeline';
+
 
 export interface WeatherData {
   location: string;
@@ -124,5 +126,33 @@ export async function getLiveWeather(location: string): Promise<WeatherData> {
     // Cache write silent catch
   }
 
+  // 4. Ingest live weather record into Knowledge Layer (pgvector + knowledge_records)
+  try {
+    await ingestLiveRecord({
+      source: 'IMD (India Meteorological Department)',
+      sourceType: 'api_feed',
+      datasetId: 'imd_daily_weather',
+      title: `IMD Weather Observation - ${weather.location}`,
+      content: `IMD Live Weather for ${weather.location}: ${weather.condition}, Temperature ${weather.temperatureC}°C, Humidity ${weather.humidity}%, Rain Chance ${weather.precipitationProb}%. ${weather.advisoryAlert || ''}`,
+      structuredData: {
+        location: weather.location,
+        temperatureC: weather.temperatureC,
+        condition: weather.condition,
+        humidity: weather.humidity,
+        precipitationProb: weather.precipitationProb,
+        advisoryAlert: weather.advisoryAlert || null,
+      },
+      metadata: {
+        region: weather.location,
+        sourceUrl: 'https://mausam.imd.gov.in',
+      },
+      validFrom: new Date(),
+    });
+  } catch (err) {
+    // Ingestion silent catch
+  }
+
+
   return weather;
 }
+

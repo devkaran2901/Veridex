@@ -47,8 +47,8 @@ async function analyzeQueryNode(state: AgentState): Promise<Partial<AgentState>>
 
   const timeScope = parseTimeScope(query);
 
-  // 1. Government Dataset Discovery Component
-  const discoveredDatasets = discoverDatasets(query);
+  // 1. Government Dataset Discovery Component (FIX #3)
+  const discoveredDatasets = await discoverDatasets(query);
   emitTraceStep(
     state.conversationId,
     `Discovered ${discoveredDatasets.length} Government Datasets (${discoveredDatasets.map((d) => d.name).join(', ')})`,
@@ -57,6 +57,7 @@ async function analyzeQueryNode(state: AgentState): Promise<Partial<AgentState>>
     { query, timeScope },
     { datasets: discoveredDatasets }
   );
+
 
   // 2. Intelligent Tool Selection
   selectedTools.push('searchLiveKnowledgeBase');
