@@ -13,61 +13,78 @@ export interface LLMResponse {
 }
 
 /**
- * Direct Groq API Fetch (With 8s Timeout & Truncation Protection)
+ * Direct Groq API Fetch with Candidate Model Fallback & Timeout Protection
  */
 async function invokeGroqLLM(
   messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>
 ): Promise<LLMResponse> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8-second timeout guard
+  const candidateModels = ['groq/compound-mini', 'openai/gpt-oss-20b', 'groq/compound'];
+  let lastError: Error | null = null;
 
-  try {
-    // Truncate messages to prevent Groq 413 Request Entity Too Large error
-    const sanitizedMessages = messages.map((m) => ({
-      role: m.role,
-      content: m.content.length > 2000 ? m.content.slice(0, 2000) + '... [truncated]' : m.content,
-    }));
+  // Truncate message length to avoid payload/token issues
+  const sanitizedMessages = messages.map((m) => ({
+    role: m.role,
+    content: m.content.length > 2500 ? m.content.slice(0, 2500) + '\n...[truncated]' : m.content,
+  }));
 
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${config.groqApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
-        model: 'groq/compound',
-        messages: sanitizedMessages,
-        temperature: 0.2,
-      }),
-    });
+  for (const model of candidateModels) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 7000); // 7s timeout per attempt
 
-    clearTimeout(timeoutId);
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.groqApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model,
+          messages: sanitizedMessages,
+          temperature: 0.2,
+          max_tokens: 1024,
+        }),
+      });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Groq API error ${response.status}: ${errText}`);
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errText = await response.text();
+        lastError = new Error(`Groq API (${model}) error ${response.status}: ${errText}`);
+        console.warn(`⚠️ Groq model ${model} failed, trying next candidate...`);
+        continue;
+      }
+
+      const data: any = await response.json();
+      let content: string = data.choices?.[0]?.message?.content || '';
+      const usage = data.usage || {};
+
+      // If response includes raw reasoning section, strip it to present clean answer
+      if (content.includes('**Answer**')) {
+        const answerPart = content.split('**Answer**')[1];
+        if (answerPart && answerPart.trim().length > 0) {
+          content = answerPart.trim();
+        }
+      }
+
+      return {
+        content,
+        tokenUsage: {
+          promptTokens: usage.prompt_tokens || 150,
+          completionTokens: usage.completion_tokens || 80,
+          totalTokens: usage.total_tokens || 230,
+        },
+      };
+
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      lastError = err;
+      console.warn(`⚠️ Groq model ${model} error:`, err.message);
     }
-
-    const data: any = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
-    const usage = data.usage || {};
-
-    return {
-      content,
-      tokenUsage: {
-        promptTokens: usage.prompt_tokens || 150,
-        completionTokens: usage.completion_tokens || 80,
-        totalTokens: usage.total_tokens || 230,
-      },
-    };
-  } catch (err: any) {
-    clearTimeout(timeoutId);
-    if (err.name === 'AbortError') {
-      throw new Error('Groq API request timed out after 8s');
-    }
-    throw err;
   }
+
+  throw lastError || new Error('All Groq model attempts failed');
 }
 
 let openAiChatModel: ChatOpenAI | null = null;
@@ -81,7 +98,37 @@ if (config.openaiApiKey && config.openaiApiKey.startsWith('sk-')) {
 }
 
 /**
- * Send messages to LLM model (Groq Free API, OpenAI, or Mock fallback)
+ * Fallback Evidence Synthesizer when LLM APIs are unreachable/rate-limited
+ * Extracts retrieved evidence from system prompt and synthesizes a grounded answer.
+ */
+function synthesizeEvidenceFallback(
+  messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>
+): string {
+  const userMsg = messages.filter((m) => m.role === 'user').pop()?.content || 'your query';
+  const sysMsg = messages.find((m) => m.role === 'system')?.content || '';
+
+  // Extract RETRIEVED EVIDENCE section
+  let evidenceText = '';
+  if (sysMsg.includes('RETRIEVED EVIDENCE:')) {
+    evidenceText = sysMsg.split('RETRIEVED EVIDENCE:')[1]?.trim() || '';
+  }
+
+  if (evidenceText && evidenceText.length > 0) {
+    const evidenceLines = evidenceText
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+
+    const summarizedEvidence = evidenceLines.map((l) => `- ${l}`).join('\n');
+
+    return `Based on retrieved government knowledge records for "${userMsg}":\n\n${summarizedEvidence}\n\n*Source: Ingested Open Government Knowledge Layer (PostgreSQL pgvector)*`;
+  }
+
+  return `Based on searches across the open government data catalog for "${userMsg}", no specific matching historical dataset records are currently loaded in the local knowledge base. You can sync additional open datasets by configuring your \`DATAGOV_API_KEY\` and triggering dataset ingestion in the Knowledge Base panel.`;
+}
+
+/**
+ * Send messages to LLM model (Groq Free API, OpenAI, or Evidence Synthesis Fallback)
  */
 export async function invokeLLM(
   messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
@@ -94,12 +141,12 @@ export async function invokeLLM(
   }
   formattedMessages.push(...messages);
 
-  // 1. FREE GROQ API (Lightning Fast Direct Fetch with Timeout)
+  // 1. FREE GROQ API (Lightning Fast Direct Fetch with Fallback Models)
   if (config.groqApiKey && config.groqApiKey.startsWith('gsk_')) {
     try {
       return await invokeGroqLLM(formattedMessages);
     } catch (err: any) {
-      console.warn('⚠️ Groq API call failed or timed out, using fallback response provider:', err.message);
+      console.warn('⚠️ Groq API call failed or timed out, falling back to evidence synthesizer:', err.message);
     }
   }
 
@@ -122,26 +169,12 @@ export async function invokeLLM(
         },
       };
     } catch (err: any) {
-      console.warn('⚠️ OpenAI API call failed, falling back to Mock provider:', err.message);
+      console.warn('⚠️ OpenAI API call failed, falling back to evidence synthesizer:', err.message);
     }
   }
 
-  // 3. MOCK LLM PROVIDER FALLBACK
-  const lastUserMsg = messages.filter((m) => m.role === 'user').pop()?.content || '';
-  const lowerMsg = lastUserMsg.toLowerCase();
-  let replyContent = '';
-
-  if (lowerMsg.includes('weather')) {
-    const locMatch = lastUserMsg.match(/in ([a-zA-Z\s]+)/i);
-    const loc = locMatch ? locMatch[1].trim() : 'the requested region';
-    replyContent = `[Veridex Agent Response] According to live weather data for ${loc}, conditions are partly cloudy to rainy with temperature around 28°C and high humidity. Transportation is operational under standard weather advisories.`;
-  } else if (lowerMsg.includes('flood') || lowerMsg.includes('government') || lowerMsg.includes('advisory')) {
-    replyContent = `[Veridex Agent Response] According to retrieved Government Disaster Management Guidelines (Page 17), heavy rainfall causes severe waterlogging in low-lying transport corridors. Commuters are advised to avoid unnecessary travel during peak storm hours.`;
-  } else if (lowerMsg.includes('preference') || lowerMsg.includes('travel')) {
-    replyContent = `[Veridex Agent Response] Based on your saved long-term memory preferences, you prefer train travel over driving during adverse weather, and you prefer avoiding heavy rain.`;
-  } else {
-    replyContent = `[Veridex Agent Response] Processing query: "${lastUserMsg}". System evaluated context across PostgreSQL pgvector and live data tools.`;
-  }
+  // 3. GROUNDED EVIDENCE SYNTHESIZER FALLBACK
+  const replyContent = synthesizeEvidenceFallback(formattedMessages);
 
   return {
     content: replyContent,
