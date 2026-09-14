@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Send, Sparkles, Bot, User, CornerDownLeft, CloudSun, BookOpen, Brain, Compass } from 'lucide-react';
+import { Send, Sparkles, Bot, User, CloudSun, BookOpen, Brain, Compass } from 'lucide-react';
 
 export interface Message {
   id: string;
@@ -24,28 +24,32 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const suggestedQuestions = [
     {
-      title: "RAG Query",
+      title: "Document RAG",
       prompt: "What does the government report say about flood management?",
       icon: BookOpen,
-      badge: "Document Retrieval"
+      badge: "PDF Search",
+      color: "bg-[#38bdf8]"
     },
     {
-      title: "Live API Query",
+      title: "Live API Feed",
       prompt: "What is the current weather in Delhi?",
       icon: CloudSun,
-      badge: "Real-time Weather"
+      badge: "Real-Time Feed",
+      color: "bg-[#ccff00]"
     },
     {
-      title: "Long-Term Memory Query",
+      title: "Long-Term Memory",
       prompt: "What are my preferences for travelling?",
       icon: Brain,
-      badge: "Memory Retrieval"
+      badge: "User Memory",
+      color: "bg-[#d8b4fe]"
     },
     {
-      title: "Multi-Tool Reasoning",
+      title: "Multi-Tool Synthesis",
       prompt: "Considering today's weather, government advisories, and my travel preferences, should I travel to Delhi tomorrow?",
       icon: Compass,
-      badge: "Weather + RAG + Memory"
+      badge: "Multi-Source RAG",
+      color: "bg-[#ff6b5b]"
     }
   ];
 
@@ -57,42 +61,45 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#0b0f19]/60 relative">
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#e9d5ff]/40 relative">
       {/* Messages Scroll Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.length === 0 ? (
-          <div className="max-w-2xl mx-auto mt-8 space-y-8 text-center">
-            <div>
-              <div className="w-16 h-16 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center mx-auto mb-4 glow-indigo">
-                <Sparkles className="w-8 h-8 text-indigo-400" />
+          <div className="max-w-3xl mx-auto mt-4 space-y-8 text-center">
+            <div className="neo-box bg-white p-8 space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-[#ccff00] border-3 border-black shadow-[4px_4px_0px_0px_#000] flex items-center justify-center mx-auto mb-2">
+                <Sparkles className="w-9 h-9 text-black fill-[#ff6b5b]" />
               </div>
-              <h2 className="text-2xl font-bold text-white tracking-tight">
-                Veridex Intelligence Agent
+              <h2 className="text-3xl font-black text-black uppercase tracking-tight">
+                Veridex Agentic RAG Assistant
               </h2>
-              <p className="text-gray-400 text-sm mt-2 max-w-md mx-auto leading-relaxed">
-                An agentic AI system that dynamically decides between Live Data APIs, pgvector Document Search, and PostgreSQL Long-Term Memory.
+              <p className="text-black text-sm font-bold max-w-lg mx-auto leading-relaxed">
+                Autonomous AI engine over Live Government APIs, PostgreSQL pgvector RAG, and Long-Term Memory.
               </p>
             </div>
 
             {/* Suggested Prompts Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-left">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
               {suggestedQuestions.map((q, i) => {
                 const Icon = q.icon;
                 return (
                   <button
                     key={i}
                     onClick={() => onSendMessage(q.prompt)}
-                    className="p-4 rounded-xl glass-card border border-gray-800 hover:border-indigo-500/50 hover:bg-indigo-600/5 transition-all text-left group"
+                    className="p-5 rounded-2xl bg-white border-3 border-black shadow-[4px_4px_0px_0px_#000] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#000] hover:bg-[#ffe600] transition-all text-left group"
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-indigo-400 flex items-center gap-1.5">
-                        <Icon className="w-3.5 h-3.5" /> {q.title}
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-black uppercase text-black flex items-center gap-2">
+                        <span className={`p-1.5 rounded-lg border-2 border-black ${q.color}`}>
+                          <Icon className="w-4 h-4 text-black stroke-[2.5]" />
+                        </span>
+                        {q.title}
                       </span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-800 text-gray-400 font-mono">
+                      <span className="neo-badge bg-black text-white text-[10px]">
                         {q.badge}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-300 group-hover:text-white transition-colors leading-snug">
+                    <p className="text-xs font-bold text-black leading-snug">
                       "{q.prompt}"
                     </p>
                   </button>
@@ -110,38 +117,38 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               >
                 {/* Avatar */}
                 <div
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                  className={`w-10 h-10 rounded-xl border-3 border-black shadow-[3px_3px_0px_0px_#000] flex items-center justify-center flex-shrink-0 font-black ${
                     isUser
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-emerald-600/20 border border-emerald-500/40 text-emerald-400'
+                      ? 'bg-[#ffe600] text-black'
+                      : 'bg-[#ccff00] text-black'
                   }`}
                 >
-                  {isUser ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
+                  {isUser ? <User className="w-6 h-6 stroke-[2.5]" /> : <Bot className="w-6 h-6 stroke-[2.5]" />}
                 </div>
 
                 {/* Content Bubble */}
                 <div
-                  className={`p-4 rounded-2xl text-sm leading-relaxed ${
+                  className={`p-5 rounded-2xl text-sm font-bold leading-relaxed border-3 border-black shadow-[4px_4px_0px_0px_#000] ${
                     isUser
-                      ? 'bg-indigo-600 text-white rounded-tr-none'
-                      : 'glass-panel border border-gray-800 text-gray-200 rounded-tl-none space-y-3'
+                      ? 'bg-[#ffe600] text-black rounded-tr-none'
+                      : 'bg-white text-black rounded-tl-none space-y-4'
                   }`}
                 >
                   <p className="whitespace-pre-wrap">{msg.content}</p>
 
                   {/* Citations / Sources Tagging */}
                   {msg.citations && msg.citations.length > 0 && (
-                    <div className="pt-3 border-t border-gray-800/80 space-y-1.5">
-                      <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                        Retrieved Sources:
+                    <div className="pt-4 border-t-3 border-black space-y-2">
+                      <div className="text-[11px] font-black text-black uppercase tracking-wider">
+                        CITED EVIDENCE & SOURCES:
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {msg.citations.map((cite, idx) => (
                           <span
                             key={idx}
-                            className="px-2.5 py-1 rounded-lg bg-gray-900 border border-gray-800 text-xs font-mono text-indigo-300 flex items-center gap-1.5"
+                            className="neo-badge bg-[#ccff00] text-black flex items-center gap-1.5"
                           >
-                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                            <span className="w-2 h-2 rounded-full bg-black" />
                             {cite.source} {cite.page ? `(Pg ${cite.page})` : ''}
                           </span>
                         ))}
@@ -156,37 +163,37 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
         {isThinking && (
           <div className="flex gap-4 max-w-3xl">
-            <div className="w-9 h-9 rounded-xl bg-emerald-600/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center">
-              <Bot className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-[#ccff00] border-3 border-black shadow-[3px_3px_0px_0px_#000] text-black flex items-center justify-center">
+              <Bot className="w-6 h-6 stroke-[2.5]" />
             </div>
-            <div className="glass-panel p-4 rounded-2xl rounded-tl-none border border-gray-800 text-sm text-gray-400 flex items-center gap-3">
-              <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping" />
-              <span>Veridex Agent is selecting tools and evaluating evidence...</span>
+            <div className="p-4 rounded-2xl rounded-tl-none bg-white border-3 border-black shadow-[4px_4px_0px_0px_#000] text-xs font-black text-black flex items-center gap-3">
+              <span className="w-3 h-3 rounded-full bg-[#ff6b5b] border-2 border-black animate-ping" />
+              <span>VERIDEX AGENT IS REASONING & RETRIEVING EVIDENCE...</span>
             </div>
           </div>
         )}
       </div>
 
       {/* Input Box Bar */}
-      <div className="p-4 border-t border-gray-800 glass-panel">
+      <div className="p-4 border-t-3 border-black bg-white">
         <form onSubmit={handleSubmit} className="max-w-3xl mx-auto relative flex items-center">
           <input
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             placeholder="Ask anything (e.g., 'What is today's weather in Delhi?')"
-            className="w-full py-3.5 pl-4 pr-12 rounded-xl bg-gray-900/90 border border-gray-800 focus:border-indigo-500 text-white placeholder-gray-500 text-sm outline-none transition-all shadow-inner"
+            className="w-full py-3.5 pl-5 pr-14 rounded-2xl bg-white border-3 border-black text-black placeholder-gray-500 font-bold text-sm outline-none shadow-[4px_4px_0px_0px_#000] focus:shadow-[6px_6px_0px_0px_#000] transition-all"
           />
           <button
             type="submit"
             disabled={!inputText.trim() || isThinking}
-            className="absolute right-2 p-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white transition-all"
+            className="absolute right-2.5 p-2.5 rounded-xl neo-btn disabled:opacity-40 flex items-center justify-center"
           >
-            <Send className="w-4 h-4" />
+            <Send className="w-4 h-4 stroke-[3]" />
           </button>
         </form>
-        <p className="text-[11px] text-gray-500 text-center mt-2 flex items-center justify-center gap-1">
-          Press <kbd className="px-1 py-0.5 rounded bg-gray-800 border border-gray-700 text-gray-400 font-mono">Enter</kbd> to submit query
+        <p className="text-[11px] font-bold text-black text-center mt-2 flex items-center justify-center gap-1">
+          Press <kbd className="px-1.5 py-0.5 rounded bg-[#ffe600] border-2 border-black font-black">ENTER</kbd> to execute Agentic query
         </p>
       </div>
     </div>

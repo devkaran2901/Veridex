@@ -10,11 +10,9 @@ import {
   Clock,
   Globe,
   Loader2,
-  Shield,
   Eye,
   Server,
-  Layers,
-  ChevronRight
+  Layers
 } from 'lucide-react';
 import { ConnectDataSourceModal } from '../components/ConnectDataSourceModal';
 
@@ -112,18 +110,18 @@ export const DataSourcesPage: React.FC = () => {
   const healthyCount = sources.filter((s) => s.status === 'HEALTHY').length;
 
   return (
-    <div className="flex-1 p-6 space-y-6 overflow-y-auto bg-[#0b0f19] text-gray-100">
+    <div className="flex-1 p-6 space-y-6 overflow-y-auto bg-[#e9d5ff]/30 text-black font-sans">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 glass-panel rounded-2xl border border-gray-800 bg-gradient-to-r from-gray-900/90 via-indigo-950/30 to-gray-900/90">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 bg-[#ffe600] border-4 border-black shadow-[6px_6px_0px_0px_#000] rounded-2xl">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <Server className="w-6 h-6 text-white" />
+          <div className="w-14 h-14 rounded-2xl bg-[#ff6b5b] border-3 border-black shadow-[4px_4px_0px_0px_#000] flex items-center justify-center">
+            <Server className="w-8 h-8 text-black stroke-[2.5]" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white tracking-wide flex items-center gap-2">
+            <h1 className="text-2xl font-black text-black tracking-wider uppercase flex items-center gap-2">
               Connected Data Sources
             </h1>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-xs font-bold text-black mt-1">
               Connect REST/JSON APIs directly into Veridex's Live Knowledge Layer for Real-Time RAG
             </p>
           </div>
@@ -131,82 +129,82 @@ export const DataSourcesPage: React.FC = () => {
 
         <button
           onClick={() => setIsModalOpen(true)}
-          className="py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 hover:shadow-indigo-500/40 transition-all active:scale-98"
+          className="py-3 px-5 neo-btn text-black text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-5 h-5 stroke-[3]" />
           <span>Connect Data Source</span>
         </button>
       </div>
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-4 rounded-xl glass-panel border border-gray-800 bg-gray-900/40">
-          <div className="flex items-center justify-between text-gray-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Total APIs Connected</span>
-            <Database className="w-4 h-4 text-indigo-400" />
+        <div className="p-4 rounded-2xl bg-white border-3 border-black shadow-[4px_4px_0px_0px_#000]">
+          <div className="flex items-center justify-between text-black mb-2">
+            <span className="text-xs font-black uppercase tracking-wider">Total APIs Connected</span>
+            <Database className="w-5 h-5 stroke-[2.5] text-black" />
           </div>
-          <div className="text-2xl font-bold text-white">{sources.length}</div>
+          <div className="text-3xl font-black text-black">{sources.length}</div>
         </div>
 
-        <div className="p-4 rounded-xl glass-panel border border-gray-800 bg-gray-900/40">
-          <div className="flex items-center justify-between text-gray-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Healthy Status</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+        <div className="p-4 rounded-2xl bg-[#ccff00] border-3 border-black shadow-[4px_4px_0px_0px_#000]">
+          <div className="flex items-center justify-between text-black mb-2">
+            <span className="text-xs font-black uppercase tracking-wider">Healthy Status</span>
+            <CheckCircle2 className="w-5 h-5 stroke-[2.5] text-black" />
           </div>
-          <div className="text-2xl font-bold text-emerald-400">
-            {healthyCount} <span className="text-xs text-gray-400 font-normal">/ {sources.length} active</span>
+          <div className="text-3xl font-black text-black">
+            {healthyCount} <span className="text-xs font-bold uppercase text-black">/ {sources.length} active</span>
           </div>
         </div>
 
-        <div className="p-4 rounded-xl glass-panel border border-gray-800 bg-gray-900/40">
-          <div className="flex items-center justify-between text-gray-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Ingested Records</span>
-            <Layers className="w-4 h-4 text-cyan-400" />
+        <div className="p-4 rounded-2xl bg-[#38bdf8] border-3 border-black shadow-[4px_4px_0px_0px_#000]">
+          <div className="flex items-center justify-between text-black mb-2">
+            <span className="text-xs font-black uppercase tracking-wider">Ingested Records</span>
+            <Layers className="w-5 h-5 stroke-[2.5] text-black" />
           </div>
-          <div className="text-2xl font-bold text-white">{totalRecords.toLocaleString()}</div>
+          <div className="text-3xl font-black text-black">{totalRecords.toLocaleString()}</div>
         </div>
 
-        <div className="p-4 rounded-xl glass-panel border border-gray-800 bg-gray-900/40">
-          <div className="flex items-center justify-between text-gray-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Sync Worker</span>
-            <Clock className="w-4 h-4 text-indigo-400" />
+        <div className="p-4 rounded-2xl bg-[#d8b4fe] border-3 border-black shadow-[4px_4px_0px_0px_#000]">
+          <div className="flex items-center justify-between text-black mb-2">
+            <span className="text-xs font-black uppercase tracking-wider">Sync Worker</span>
+            <Clock className="w-5 h-5 stroke-[2.5] text-black" />
           </div>
-          <div className="text-2xl font-bold text-indigo-400">Continuous</div>
+          <div className="text-3xl font-black text-black">Continuous</div>
         </div>
       </div>
 
       {/* Main Grid / Data Source Cards */}
       {loading ? (
         <div className="flex flex-col items-center justify-center p-16 space-y-3">
-          <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-          <p className="text-xs text-gray-400">Loading connected data sources...</p>
+          <Loader2 className="w-10 h-10 text-black animate-spin stroke-[2.5]" />
+          <p className="text-xs font-black uppercase text-black">Loading connected data sources...</p>
         </div>
       ) : error ? (
-        <div className="p-6 text-center text-rose-400 bg-rose-950/20 border border-rose-500/30 rounded-xl">
-          <AlertCircle className="w-6 h-6 mx-auto mb-2" />
-          <p className="text-sm">{error}</p>
+        <div className="p-6 text-center text-black bg-[#ff6b5b] border-3 border-black shadow-[4px_4px_0px_0px_#000] rounded-2xl">
+          <AlertCircle className="w-8 h-8 mx-auto mb-2 stroke-[2.5]" />
+          <p className="text-sm font-black uppercase">{error}</p>
         </div>
       ) : sources.length === 0 ? (
-        <div className="p-12 text-center border border-dashed border-gray-800 rounded-2xl bg-gray-900/20 space-y-4">
-          <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center mx-auto text-gray-400">
-            <Globe className="w-6 h-6" />
+        <div className="p-12 text-center border-4 border-dashed border-black rounded-2xl bg-white shadow-[4px_4px_0px_0px_#000] space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-[#ffe600] border-3 border-black shadow-[3px_3px_0px_0px_#000] flex items-center justify-center mx-auto text-black">
+            <Globe className="w-7 h-7 stroke-[2.5]" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-white">No Data Sources Connected</h3>
-            <p className="text-xs text-gray-400 max-w-sm mx-auto mt-1">
+            <h3 className="text-lg font-black text-black uppercase">No Custom Data Sources Connected</h3>
+            <p className="text-xs font-bold text-black max-w-md mx-auto mt-1">
               Connect your organization's REST/JSON APIs to ingest live records directly into PostgreSQL pgvector for Agentic RAG.
             </p>
           </div>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="py-2 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold inline-flex items-center gap-2"
+            className="py-3 px-5 neo-btn text-black text-xs font-black uppercase inline-flex items-center gap-2"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-5 h-5 stroke-[3]" />
             <span>Connect First API</span>
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sources.map((source) => {
             const isSyncing = syncingId === source.id;
             const isHealthy = source.status === 'HEALTHY';
@@ -216,79 +214,74 @@ export const DataSourcesPage: React.FC = () => {
             return (
               <div
                 key={source.id}
-                className="glass-panel border border-gray-800/80 rounded-2xl p-5 hover:border-gray-700 transition-all flex flex-col justify-between space-y-4 bg-gray-900/40 relative overflow-hidden"
+                className="bg-white border-3 border-black shadow-[5px_5px_0px_0px_#000] rounded-2xl p-5 hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[7px_7px_0px_0px_#000] transition-all flex flex-col justify-between space-y-4"
               >
                 <div>
                   {/* Status Badge & Actions */}
                   <div className="flex items-center justify-between mb-3">
                     <span
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide uppercase border ${
+                      className={`neo-badge ${
                         isHealthy
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                          ? 'bg-[#ccff00] text-black'
                           : isError
-                          ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
-                          : 'bg-gray-500/10 text-gray-400 border-gray-500/30'
+                          ? 'bg-[#ff6b5b] text-black'
+                          : 'bg-gray-200 text-black'
                       }`}
                     >
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full ${
-                          isHealthy ? 'bg-emerald-400 animate-pulse' : isError ? 'bg-rose-400' : 'bg-gray-400'
-                        }`}
-                      />
                       {source.status}
                     </span>
 
-                    <div className="flex items-center gap-1 text-gray-400">
+                    <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => setSelectedSource(source)}
                         title="View Details"
-                        className="p-1.5 hover:text-white rounded-lg hover:bg-gray-800 transition-all"
+                        className="p-1.5 bg-white border-2 border-black rounded-lg shadow-[2px_2px_0px_0px_#000] hover:bg-[#ffe600] transition-all"
                       >
-                        <Eye className="w-3.5 h-3.5" />
+                        <Eye className="w-4 h-4 stroke-[2.5]" />
                       </button>
                       <button
                         onClick={() => handleToggleEnable(source)}
                         title={isDisabled ? 'Enable Sync' : 'Disable Sync'}
-                        className={`p-1.5 rounded-lg hover:bg-gray-800 transition-all ${
-                          isDisabled ? 'text-emerald-400' : 'text-gray-400 hover:text-amber-400'
+                        className={`p-1.5 border-2 border-black rounded-lg shadow-[2px_2px_0px_0px_#000] transition-all ${
+                          isDisabled ? 'bg-[#ccff00]' : 'bg-[#ffe600] hover:bg-[#ff6b5b]'
                         }`}
                       >
-                        <Power className="w-3.5 h-3.5" />
+                        <Power className="w-4 h-4 stroke-[2.5]" />
                       </button>
                       <button
                         onClick={() => handleDelete(source.id)}
                         title="Delete Data Source"
-                        className="p-1.5 text-gray-400 hover:text-rose-400 rounded-lg hover:bg-gray-800 transition-all"
+                        className="p-1.5 bg-[#ff6b5b] border-2 border-black rounded-lg shadow-[2px_2px_0px_0px_#000] hover:bg-rose-500 transition-all text-black"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-4 h-4 stroke-[2.5]" />
                       </button>
                     </div>
                   </div>
 
                   {/* Title & Domain */}
-                  <h3 className="font-bold text-white text-base tracking-wide line-clamp-1">{source.name}</h3>
-                  <div className="flex items-center gap-1.5 text-xs text-indigo-400 font-mono mt-1">
-                    <Globe className="w-3.5 h-3.5 flex-shrink-0 text-indigo-400/70" />
+                  <h3 className="font-black text-black text-lg uppercase tracking-tight line-clamp-1">{source.name}</h3>
+                  <div className="flex items-center gap-1.5 text-xs text-black font-mono font-bold mt-1">
+                    <Globe className="w-4 h-4 flex-shrink-0 text-black stroke-[2.5]" />
                     <span className="truncate">{source.domain || source.url}</span>
                   </div>
 
                   {/* Details Grid */}
-                  <div className="grid grid-cols-2 gap-2 my-4 p-3 bg-gray-950/60 rounded-xl border border-gray-800/60 text-xs">
+                  <div className="grid grid-cols-2 gap-2 my-4 p-3 bg-[#e9d5ff]/40 rounded-xl border-2 border-black text-xs font-bold">
                     <div>
-                      <span className="text-gray-500 text-[10px] uppercase font-semibold block">Record Count</span>
-                      <span className="font-bold text-white font-mono">{source.record_count?.toLocaleString() || 0}</span>
+                      <span className="text-black text-[10px] uppercase font-black block">Record Count</span>
+                      <span className="font-black text-black font-mono text-sm">{source.record_count?.toLocaleString() || 0}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500 text-[10px] uppercase font-semibold block">Refresh Interval</span>
-                      <span className="font-semibold text-gray-300 font-mono">Every {source.refresh_interval}m</span>
+                      <span className="text-black text-[10px] uppercase font-black block">Refresh Interval</span>
+                      <span className="font-bold text-black font-mono">Every {source.refresh_interval}m</span>
                     </div>
                     <div>
-                      <span className="text-gray-500 text-[10px] uppercase font-semibold block">Authentication</span>
-                      <span className="font-semibold text-gray-300 capitalize">{source.auth_type}</span>
+                      <span className="text-black text-[10px] uppercase font-black block">Authentication</span>
+                      <span className="font-bold text-black uppercase">{source.auth_type}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500 text-[10px] uppercase font-semibold block">Last Synced</span>
-                      <span className="font-semibold text-gray-300 font-mono">
+                      <span className="text-black text-[10px] uppercase font-black block">Last Synced</span>
+                      <span className="font-bold text-black font-mono">
                         {source.last_fetched_at ? new Date(source.last_fetched_at).toLocaleTimeString() : 'Never'}
                       </span>
                     </div>
@@ -296,16 +289,16 @@ export const DataSourcesPage: React.FC = () => {
 
                   {/* Error banner if present */}
                   {source.last_error && (
-                    <div className="p-2.5 rounded-lg bg-rose-950/30 border border-rose-500/20 text-[11px] text-rose-300 flex items-start gap-1.5 font-mono">
-                      <AlertCircle className="w-3.5 h-3.5 text-rose-400 flex-shrink-0 mt-0.5" />
+                    <div className="p-3 rounded-xl bg-[#ff6b5b] border-2 border-black text-xs text-black font-bold flex items-start gap-2 shadow-[2px_2px_0px_0px_#000]">
+                      <AlertCircle className="w-4 h-4 text-black flex-shrink-0 mt-0.5 stroke-[2.5]" />
                       <span className="line-clamp-2">{source.last_error}</span>
                     </div>
                   )}
 
                   {/* Sync success stats banner */}
                   {syncMessage && syncMessage.id === source.id && (
-                    <div className="p-2.5 rounded-lg bg-emerald-950/30 border border-emerald-500/30 text-[11px] text-emerald-300 flex items-start gap-1.5 font-mono mt-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                    <div className="p-3 rounded-xl bg-[#ccff00] border-2 border-black text-xs text-black font-bold flex items-start gap-2 shadow-[2px_2px_0px_0px_#000] mt-2">
+                      <CheckCircle2 className="w-4 h-4 text-black flex-shrink-0 mt-0.5 stroke-[2.5]" />
                       <span>{syncMessage.text}</span>
                     </div>
                   )}
@@ -316,12 +309,12 @@ export const DataSourcesPage: React.FC = () => {
                   <button
                     onClick={() => handleSyncNow(source.id)}
                     disabled={isSyncing || isDisabled}
-                    className="w-full py-2 px-3 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-xs font-semibold text-white rounded-xl flex items-center justify-center gap-2 border border-gray-700 transition-all active:scale-98"
+                    className="w-full py-2.5 px-3 neo-btn text-xs font-black uppercase flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     {isSyncing ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-400" />
+                      <Loader2 className="w-4 h-4 animate-spin text-black stroke-[3]" />
                     ) : (
-                      <RefreshCw className="w-3.5 h-3.5 text-indigo-400" />
+                      <RefreshCw className="w-4 h-4 text-black stroke-[3]" />
                     )}
                     <span>{isSyncing ? 'Syncing Records...' : 'Sync Now'}</span>
                   </button>
@@ -342,33 +335,33 @@ export const DataSourcesPage: React.FC = () => {
       {/* Source Detail Modal */}
       {selectedSource && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-          <div className="bg-[#0f172a] border border-gray-800 rounded-2xl w-full max-w-xl p-6 space-y-4 text-xs font-mono">
-            <div className="flex items-center justify-between border-b border-gray-800 pb-3">
-              <h3 className="text-sm font-bold text-white font-sans">{selectedSource.name} Details</h3>
-              <button onClick={() => setSelectedSource(null)} className="text-gray-400 hover:text-white">
+          <div className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_#000] rounded-2xl w-full max-w-xl p-6 space-y-4 text-xs text-black font-bold">
+            <div className="flex items-center justify-between border-b-3 border-black pb-3">
+              <h3 className="text-base font-black text-black uppercase tracking-wide">{selectedSource.name} Details</h3>
+              <button onClick={() => setSelectedSource(null)} className="p-1 rounded-lg bg-[#ff6b5b] border-2 border-black font-black">
                 ✕
               </button>
             </div>
-            <div className="space-y-2 text-gray-300">
+            <div className="space-y-3">
               <div>
-                <span className="text-gray-500 block text-[10px] uppercase">API Endpoint URL:</span>
-                <span className="text-indigo-400 break-all">{selectedSource.url}</span>
+                <span className="text-black block text-[10px] uppercase font-black">API Endpoint URL:</span>
+                <span className="font-mono text-xs bg-[#e9d5ff] p-2 border-2 border-black rounded-lg block break-all font-bold">{selectedSource.url}</span>
               </div>
-              <div className="grid grid-cols-2 gap-2 pt-2">
+              <div className="grid grid-cols-2 gap-3 pt-2">
                 <div>
-                  <span className="text-gray-500 block text-[10px] uppercase">Status:</span>
-                  <span className="text-emerald-400 font-semibold">{selectedSource.status}</span>
+                  <span className="text-black block text-[10px] uppercase font-black">Status:</span>
+                  <span className="neo-badge bg-[#ccff00] text-black inline-block">{selectedSource.status}</span>
                 </div>
                 <div>
-                  <span className="text-gray-500 block text-[10px] uppercase">Authentication:</span>
-                  <span className="text-white">{selectedSource.auth_type}</span>
+                  <span className="text-black block text-[10px] uppercase font-black">Authentication:</span>
+                  <span className="neo-badge bg-[#ffe600] text-black inline-block">{selectedSource.auth_type}</span>
                 </div>
               </div>
               <div>
-                <span className="text-gray-500 block text-[10px] uppercase mb-1">Detected Schema:</span>
-                <div className="flex flex-wrap gap-1">
+                <span className="text-black block text-[10px] uppercase font-black mb-1.5">Detected Field Schema:</span>
+                <div className="flex flex-wrap gap-1.5">
                   {(selectedSource.schema || []).map((s: any, idx) => (
-                    <span key={idx} className="px-2 py-0.5 bg-gray-900 border border-gray-800 rounded text-indigo-300">
+                    <span key={idx} className="neo-badge bg-[#38bdf8] text-black font-mono">
                       {typeof s === 'string' ? s : `${s.name}: ${s.type}`}
                     </span>
                   ))}
