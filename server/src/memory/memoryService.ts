@@ -1,6 +1,6 @@
 import { query } from '../database/db';
 import { generateEmbedding } from '../services/embedding';
-import { invokeLLM } from '../services/llm';
+import { config } from '../config/env';
 
 const DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -20,7 +20,7 @@ export interface MemoryItem {
  */
 export async function saveMemory(
   content: string,
-  memoryType: 'semantic' | 'episodic' | 'preference' = 'semantic',
+  memoryType: 'semantic' | 'episodic' | 'preference' = 'preference',
   importance: 'low' | 'medium' | 'high' = 'medium',
   metadata: Record<string, any> = {}
 ): Promise<MemoryItem> {
@@ -62,32 +62,36 @@ export async function saveMemory(
 }
 
 /**
- * Search relevant long-term memories using pgvector cosine similarity + importance weighting
+ * Search relevant long-term memories using pgvector cosine similarity + importance weighting (FIX #17)
  */
 export async function searchMemory(
   queryText: string,
   limit: number = 3
 ): Promise<MemoryItem[]> {
-  const queryEmbedding = await generateEmbedding(queryText);
-  const vectorSqlStr = `[${queryEmbedding.join(',')}]`;
-
-  const sql = `
-    SELECT 
-      id,
-      user_id,
-      memory_type,
-      content,
-      importance,
-      created_at,
-      1 - (embedding <=> $1::vector) as similarity
-    FROM memories
-    WHERE user_id = $2
-    ORDER BY embedding <=> $1::vector ASC
-    LIMIT $3;
-  `;
-
   try {
+    const queryEmbedding = await generateEmbedding(queryText);
+    const vectorSqlStr = `[${queryEmbedding.join(',')}]`;
+
+    const sql = `
+      SELECT 
+        id,
+        user_id,
+        memory_type,
+        content,
+        importance,
+        created_at,
+        1 - (embedding <=> $1::vector) as similarity
+      FROM memories
+      WHERE user_id = $2
+      ORDER BY embedding <=> $1::vector ASC
+      LIMIT $3;
+    `;
+
     const result = await query(sql, [vectorSqlStr, DEFAULT_USER_ID, limit]);
+
+    if (result.rows.length === 0 && config.dataMode === 'demo') {
+      return getDemoFallbackMemories();
+    }
 
     return result.rows.map((row: any) => {
       const similarity = parseFloat(row.similarity.toFixed(4));
@@ -106,36 +110,51 @@ export async function searchMemory(
       };
     });
   } catch (err: any) {
-    console.warn('⚠️ Memory DB query failed (DB offline), returning fallback user memories:', err.message);
-    return [
-      {
-        id: 'mock-mem-1',
-        userId: DEFAULT_USER_ID,
-        memoryType: 'preference',
-        content: 'User prefers train travel over driving during adverse weather',
-        importance: 'high',
-        similarity: 0.92,
-        score: 1.1,
-        createdAt: new Date().toISOString(),
-      },
-    ];
+    console.warn('⚠️ Memory DB query failed:', err.message);
+    if (config.dataMode === 'demo') {
+      return getDemoFallbackMemories();
+    }
+    return [];
   }
 }
 
+function getDemoFallbackMemories(): MemoryItem[] {
+  return [
+    {
+      id: 'demo-mem-1',
+      userId: DEFAULT_USER_ID,
+      memoryType: 'preference',
+      content: '[DEMO USER MEMORY] User prefers train travel over driving during adverse weather or heavy rainfall.',
+      importance: 'high',
+      similarity: 0.92,
+      score: 1.1,
+      createdAt: new Date().toISOString(),
+    },
+  ];
+}
+
 /**
- * Automatically evaluate user turns to detect if new preferences or facts should be remembered
+ * Extract durable user preferences/facts (FIX #18: Prevent Memory Contamination)
+ * Only saves explicit preference declarations, never random conversation or government facts.
  */
 export async function extractAndSaveMemories(userMessage: string): Promise<MemoryItem[]> {
-  const lower = userMessage.toLowerCase();
+  const lower = userMessage.toLowerCase().trim();
   const saved: MemoryItem[] = [];
 
-  // Rules & LLM heuristic for detecting long-term preferences
-  if (lower.includes('i prefer') || lower.includes('i like') || lower.includes('my preference')) {
+  // Strictly check for explicit preference statements
+  const isExplicitPreference =
+    lower.includes('i prefer') ||
+    lower.includes('my preference is') ||
+    lower.includes('i like to travel by') ||
+    lower.includes('remember that i') ||
+    lower.startsWith('preference:');
+
+  if (isExplicitPreference) {
     if (lower.includes('train')) {
       const mem = await saveMemory('User prefers train travel over driving during adverse weather', 'preference', 'high');
       saved.push(mem);
     }
-    if (lower.includes('rain') || lower.includes('storm')) {
+    if (lower.includes('avoid') && (lower.includes('rain') || lower.includes('storm'))) {
       const mem = await saveMemory('User prefers avoiding heavy rain and storms during travel', 'preference', 'high');
       saved.push(mem);
     }

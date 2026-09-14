@@ -1,12 +1,13 @@
 import { query } from '../database/db';
 import { generateEmbedding } from '../services/embedding';
+import { config } from '../config/env';
 
-export type TimeScope = 'current' | 'recent' | 'historical';
+export type TimeScope = 'current' | 'recent' | 'historical' | 'comparison';
 
 export interface RetrievalOptions {
   limit?: number;
   timeScope?: TimeScope;
-  mode?: 'semantic' | 'structured' | 'hybrid';
+  mode?: 'semantic' | 'structured' | 'hybrid' | 'comparison';
   districtFilter?: string;
   sourceFilter?: string;
 }
@@ -21,26 +22,63 @@ export interface HybridKnowledgeRecordResult {
   structuredData: Record<string, any>;
   metadata: Record<string, any>;
   validFrom: string;
+  observedAt: string;
+  retrievedAt: string;
   vectorSimilarity: number;
   freshnessScore: number;
+  reliabilityScore: number;
   hybridScore: number;
   ageString: string;
   isFresh: boolean;
+  isMock: boolean;
 }
 
 /**
- * Detect temporal scope from user query
+ * Detect temporal scope from user query (FIX #9)
  */
 export function parseTimeScope(queryText: string): TimeScope {
   const q = queryText.toLowerCase();
 
-  if (q.includes('today') || q.includes('current') || q.includes('now') || q.includes('present') || q.includes('forecast')) {
+  if (
+    q.includes('changed') ||
+    q.includes('since yesterday') ||
+    q.includes('since this morning') ||
+    q.includes('compared with') ||
+    q.includes('compared to') ||
+    q.includes('difference') ||
+    q.includes('evolved')
+  ) {
+    return 'comparison';
+  }
+  if (
+    q.includes('today') ||
+    q.includes('current') ||
+    q.includes('now') ||
+    q.includes('present') ||
+    q.includes('forecast') ||
+    q.includes('this morning') ||
+    q.includes('currently')
+  ) {
     return 'current';
   }
-  if (q.includes('recent') || q.includes('lately') || q.includes('this week') || q.includes('this month') || q.includes('latest')) {
+  if (
+    q.includes('recent') ||
+    q.includes('recently') ||
+    q.includes('lately') ||
+    q.includes('this week') ||
+    q.includes('this month') ||
+    q.includes('latest')
+  ) {
     return 'recent';
   }
-  if (q.includes('historical') || q.includes('past') || q.includes('previously') || q.includes('trend') || q.includes('compared')) {
+  if (
+    q.includes('historical') ||
+    q.includes('past') ||
+    q.includes('previously') ||
+    q.includes('last year') ||
+    q.includes('2025') ||
+    q.includes('2024')
+  ) {
     return 'historical';
   }
 
@@ -53,7 +91,7 @@ export function parseTimeScope(queryText: string): TimeScope {
 export function computeFreshnessScore(validFromDate: Date, timeScope: TimeScope): number {
   const ageInHours = Math.max(0, (Date.now() - validFromDate.getTime()) / (1000 * 60 * 60));
 
-  // Decay half-lives: current = 24h, recent = 336h (14d), historical = 8760h (1y)
+  // Decay half-lives: current = 24h, recent = 336h (14d), historical/comparison = 8760h (1y)
   const halfLifeHours = timeScope === 'current' ? 24 : timeScope === 'recent' ? 336 : 8760;
   const lambda = Math.LN2 / halfLifeHours;
 
@@ -74,7 +112,21 @@ export function formatAgeString(date: Date): string {
 }
 
 /**
- * Main Hybrid Freshness-Aware Knowledge Retrieval Engine
+ * Compute Source Reliability score (FIX #15)
+ */
+export function computeReliabilityScore(source: string, metadata: Record<string, any>): number {
+  const s = source.toLowerCase();
+  const isMock = metadata.isMock || s.includes('mock') || s.includes('demo');
+
+  if (isMock) return 0.4;
+  if (s.includes('imd') || s.includes('ndma') || s.includes('data.gov.in') || s.includes('government')) {
+    return 1.0;
+  }
+  return 0.8;
+}
+
+/**
+ * Main Hybrid Freshness-Aware Knowledge Retrieval Engine (FIX #12, #13, #14)
  */
 export async function searchLiveKnowledgeBase(
   queryText: string,
@@ -82,20 +134,71 @@ export async function searchLiveKnowledgeBase(
 ): Promise<HybridKnowledgeRecordResult[]> {
   const limit = options.limit || 4;
   const timeScope = options.timeScope || parseTimeScope(queryText);
+  const q = queryText.toLowerCase();
 
-  // 1. Check if query is structured numerical query (e.g. district rainfall, temperatures)
   const isStructuredQuery =
     options.mode === 'structured' ||
-    queryText.toLowerCase().includes('district') ||
-    queryText.toLowerCase().includes('which district') ||
-    queryText.toLowerCase().includes('highest rainfall') ||
-    queryText.toLowerCase().includes('most rainfall');
+    q.includes('district') ||
+    q.includes('which district') ||
+    q.includes('highest rainfall') ||
+    q.includes('most rainfall') ||
+    q.includes('temperature') ||
+    q.includes('statistics');
+
+  const isComparisonQuery = timeScope === 'comparison' || options.mode === 'comparison';
 
   try {
     const queryEmbedding = await generateEmbedding(queryText);
     const vectorSqlStr = `[${queryEmbedding.join(',')}]`;
 
-    // 2. Execute Hybrid Vector + Structured SQL query on PostgreSQL knowledge_records
+    // 1. Comparison Mode: Fetch current version records + historical/previous version records
+    if (isComparisonQuery) {
+      const sqlComparison = `
+        SELECT 
+          id, source, source_type, dataset_id, title, content, structured_data, metadata, 
+          valid_from, observed_at, retrieved_at, version,
+          1 - (embedding <=> $1::vector) as vector_similarity
+        FROM knowledge_records
+        ORDER BY version DESC, valid_from DESC
+        LIMIT $2;
+      `;
+      const compRes = await query(sqlComparison, [vectorSqlStr, limit * 3]);
+
+      if (compRes.rows.length === 0) {
+        return config.dataMode === 'demo' ? getFallbackKnowledgeRecords(queryText, timeScope) : [];
+      }
+
+      return compRes.rows.map((row: any) => {
+        const validFromDate = new Date(row.valid_from || row.observed_at || Date.now());
+        const vecSim = parseFloat((row.vector_similarity || 0.8).toFixed(4));
+        const freshness = computeFreshnessScore(validFromDate, timeScope);
+        const reliability = computeReliabilityScore(row.source, row.metadata || {});
+        const hybridScore = parseFloat((vecSim * 0.5 + freshness * 0.3 + reliability * 0.2).toFixed(4));
+
+        return {
+          id: row.id,
+          source: row.source,
+          sourceType: row.source_type,
+          datasetId: row.dataset_id,
+          title: `[VERSION ${row.version || 1}] ${row.title}`,
+          content: row.content,
+          structuredData: row.structured_data || {},
+          metadata: row.metadata || {},
+          validFrom: validFromDate.toISOString(),
+          observedAt: new Date(row.observed_at || validFromDate).toISOString(),
+          retrievedAt: new Date(row.retrieved_at || Date.now()).toISOString(),
+          vectorSimilarity: vecSim,
+          freshnessScore: freshness,
+          reliabilityScore: reliability,
+          hybridScore,
+          ageString: formatAgeString(validFromDate),
+          isFresh: freshness > 0.7,
+          isMock: Boolean(row.metadata?.isMock),
+        };
+      }).slice(0, limit);
+    }
+
+    // 2. Structured SQL or Semantic Hybrid Retrieval
     const sql = `
       SELECT 
         id,
@@ -107,13 +210,15 @@ export async function searchLiveKnowledgeBase(
         structured_data,
         metadata,
         valid_from,
+        observed_at,
+        retrieved_at,
         1 - (embedding <=> $1::vector) as vector_similarity
       FROM knowledge_records
       WHERE 1=1
-      ${isStructuredQuery ? "AND (structured_data->>'rainfallMm') IS NOT NULL" : ''}
+      ${isStructuredQuery ? "AND (structured_data->>'rainfallMm') IS NOT NULL OR (structured_data->>'temperatureC') IS NOT NULL" : ''}
       ORDER BY ${
         isStructuredQuery
-          ? "(structured_data->>'rainfallMm')::float DESC, embedding <=> $1::vector ASC"
+          ? "COALESCE((structured_data->>'rainfallMm')::float, (structured_data->>'temperatureC')::float, 0) DESC, embedding <=> $1::vector ASC"
           : "embedding <=> $1::vector ASC"
       }
       LIMIT $2;
@@ -122,21 +227,23 @@ export async function searchLiveKnowledgeBase(
     const res = await query(sql, [vectorSqlStr, limit * 2]);
 
     if (res.rows.length === 0) {
-      return getFallbackKnowledgeRecords(queryText, timeScope);
+      return config.dataMode === 'demo' ? getFallbackKnowledgeRecords(queryText, timeScope) : [];
     }
 
-    // 3. Score records combining Vector Similarity + Freshness Decay Scoring
+    // 3. Score records combining Vector Similarity + Freshness Decay + Source Reliability
     const scored: HybridKnowledgeRecordResult[] = res.rows.map((row: any) => {
-      const validFromDate = new Date(row.valid_from || Date.now());
+      const validFromDate = new Date(row.valid_from || row.observed_at || Date.now());
       const vecSim = parseFloat((row.vector_similarity || 0.8).toFixed(4));
       const freshness = computeFreshnessScore(validFromDate, timeScope);
+      const reliability = computeReliabilityScore(row.source, row.metadata || {});
 
-      // Weighting: 60% Vector Similarity, 40% Freshness for current queries
-      const weightVector = timeScope === 'current' ? 0.6 : 0.8;
-      const weightFreshness = 1.0 - weightVector;
+      // Score formula: 50% Vector Sim, 30% Freshness, 20% Reliability
+      const weightVector = timeScope === 'current' ? 0.5 : 0.7;
+      const weightFreshness = timeScope === 'current' ? 0.3 : 0.1;
+      const weightReliability = 0.2;
 
       const hybridScore = parseFloat(
-        (vecSim * weightVector + freshness * weightFreshness).toFixed(4)
+        (vecSim * weightVector + freshness * weightFreshness + reliability * weightReliability).toFixed(4)
       );
 
       return {
@@ -149,11 +256,15 @@ export async function searchLiveKnowledgeBase(
         structuredData: row.structured_data || {},
         metadata: row.metadata || {},
         validFrom: validFromDate.toISOString(),
+        observedAt: new Date(row.observed_at || validFromDate).toISOString(),
+        retrievedAt: new Date(row.retrieved_at || Date.now()).toISOString(),
         vectorSimilarity: vecSim,
         freshnessScore: freshness,
+        reliabilityScore: reliability,
         hybridScore,
         ageString: formatAgeString(validFromDate),
         isFresh: freshness > 0.7,
+        isMock: Boolean(row.metadata?.isMock),
       };
     });
 
@@ -162,13 +273,16 @@ export async function searchLiveKnowledgeBase(
     return scored.slice(0, limit);
 
   } catch (err: any) {
-    console.warn('⚠️ Hybrid retrieval query failed (DB offline), returning fallback knowledge records:', err.message);
-    return getFallbackKnowledgeRecords(queryText, timeScope);
+    console.warn('⚠️ Hybrid retrieval query failed:', err.message);
+    if (config.dataMode === 'demo') {
+      return getFallbackKnowledgeRecords(queryText, timeScope);
+    }
+    return [];
   }
 }
 
 /**
- * Fallback knowledge records for offline / demonstration testing
+ * Explicit DEMO Mode Fallback knowledge records (Used ONLY when DATA_MODE=demo)
  */
 function getFallbackKnowledgeRecords(
   queryText: string,
@@ -187,11 +301,15 @@ function getFallbackKnowledgeRecords(
       structuredData: { location: 'North India', temperatureC: 28, condition: 'Thunderstorms', isMock: true },
       metadata: { issuingAuthority: 'IMD (Demo Fallback)', isMock: true },
       validFrom: now.toISOString(),
+      observedAt: now.toISOString(),
+      retrievedAt: now.toISOString(),
       vectorSimilarity: 0.85,
       freshnessScore: 0.9,
+      reliabilityScore: 0.4,
       hybridScore: 0.87,
       ageString: '5m ago',
       isFresh: true,
+      isMock: true,
     },
     {
       id: 'fb-rec-2',
@@ -203,12 +321,15 @@ function getFallbackKnowledgeRecords(
       structuredData: { advisoryLevel: 'Warning', issuingAuthority: 'NDMA (Demo Fallback)', isMock: true },
       metadata: { issuingAuthority: 'National Disaster Management Authority', isMock: true },
       validFrom: now.toISOString(),
+      observedAt: now.toISOString(),
+      retrievedAt: now.toISOString(),
       vectorSimilarity: 0.82,
       freshnessScore: 0.9,
+      reliabilityScore: 0.4,
       hybridScore: 0.85,
       ageString: '10m ago',
       isFresh: true,
+      isMock: true,
     },
   ];
 }
-

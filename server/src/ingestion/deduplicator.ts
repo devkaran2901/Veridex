@@ -19,13 +19,15 @@ export function computeContentHash(record: KnowledgeRecordInput): string {
 
 export interface ChangeDetectionResult {
   isDuplicate: boolean;
+  isVersionUpdate: boolean;
   existingId?: string;
   existingVersion?: number;
+  newVersion: number;
   contentHash: string;
 }
 
 /**
- * Detect whether incoming record is identical, updated, or new
+ * Detect whether incoming record is identical, an updated version, or completely new
  */
 export async function detectRecordChange(
   record: KnowledgeRecordInput,
@@ -44,16 +46,21 @@ export async function detectRecordChange(
       if (existing.content_hash === contentHash) {
         return {
           isDuplicate: true,
+          isVersionUpdate: false,
           existingId: existing.id,
           existingVersion: existing.version,
+          newVersion: existing.version,
           contentHash,
         };
       }
 
+      // Content changed -> create new version snapshot
       return {
         isDuplicate: false,
+        isVersionUpdate: true,
         existingId: existing.id,
-        existingVersion: existing.version + 1,
+        existingVersion: existing.version,
+        newVersion: existing.version + 1,
         contentHash,
       };
     }
@@ -63,6 +70,8 @@ export async function detectRecordChange(
 
   return {
     isDuplicate: false,
+    isVersionUpdate: false,
+    newVersion: 1,
     contentHash,
   };
 }

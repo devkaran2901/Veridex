@@ -4,7 +4,7 @@ import cors from 'cors';
 import { Server as SocketIOServer } from 'socket.io';
 import { config } from './config/env';
 import { initDatabase } from './database/initDb';
-import { seedInitialKnowledgeIfNeeded } from './ingestion/ingestionPipeline';
+import { seedInitialKnowledgeIfNeeded, startBackgroundIngestionScheduler, stopBackgroundIngestionScheduler } from './ingestion/ingestionPipeline';
 
 import healthRoutes from './routes/health';
 import chatRoutes from './routes/chat';
@@ -52,9 +52,12 @@ io.on('connection', (socket) => {
 // Startup sequence
 async function startServer() {
   try {
-    // Database initialization & Knowledge seed
+    // Database initialization, Knowledge seed & Continuous Ingestion Worker
     await initDatabase()
-      .then(() => seedInitialKnowledgeIfNeeded())
+      .then(async () => {
+        await seedInitialKnowledgeIfNeeded();
+        startBackgroundIngestionScheduler(config.ingestionIntervalMinutes);
+      })
       .catch((err) => {
         console.warn('⚠️ DB init failed on startup, server will proceed. Ensure Docker is running:', err.message);
       });
@@ -66,14 +69,17 @@ async function startServer() {
     });
 
     server.listen(config.port, () => {
-      console.log(`🚀 Veridex Agentic RAG Server listening on http://localhost:${config.port}`);
+      console.log(`🚀 Veridex Agentic RAG Server listening on http://localhost:${config.port} [Mode: ${config.dataMode.toUpperCase()}]`);
       console.log(`⚡ WebSocket Server initialized via Socket.IO`);
+      console.log(`🔄 Continuous Background Ingestion Active (${config.ingestionIntervalMinutes}m interval)`);
     });
 
     process.on('SIGTERM', () => {
+      stopBackgroundIngestionScheduler();
       server.close();
     });
     process.on('SIGINT', () => {
+      stopBackgroundIngestionScheduler();
       server.close();
     });
   } catch (error) {
@@ -85,4 +91,3 @@ async function startServer() {
 if (require.main === module) {
   startServer();
 }
-

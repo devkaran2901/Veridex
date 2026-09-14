@@ -10,7 +10,9 @@ import {
   Database, 
   Brain, 
   Zap,
-  BookOpen
+  BookOpen,
+  Shield,
+  AlertTriangle
 } from 'lucide-react';
 
 export interface TraceStep {
@@ -39,10 +41,10 @@ export const AgentTracePanel: React.FC<AgentTracePanelProps> = ({
 
   const getToolIcon = (toolName?: string) => {
     if (!toolName) return Layers;
-    if (toolName.includes('Weather')) return CloudSun;
+    if (toolName.includes('Weather') || toolName.includes('discover')) return CloudSun;
     if (toolName.includes('Knowledge') || toolName.includes('Document')) return BookOpen;
     if (toolName.includes('Memory')) return Brain;
-    if (toolName.includes('Database')) return Database;
+    if (toolName.includes('Database') || toolName.includes('Plan')) return Database;
     return Zap;
   };
 
@@ -69,7 +71,7 @@ export const AgentTracePanel: React.FC<AgentTracePanelProps> = ({
             <Layers className="w-8 h-8 mb-2 stroke-1 opacity-50" />
             <p className="text-xs font-medium">No active execution trace</p>
             <p className="text-[11px] text-gray-600 mt-1">
-              Ask a question to see real-time tool selection, memory lookup, and RAG evaluation.
+              Ask a query to observe real-time planner reasoning, dataset discovery, hybrid RAG, and memory isolation.
             </p>
           </div>
         ) : (
@@ -122,7 +124,7 @@ export const AgentTracePanel: React.FC<AgentTracePanelProps> = ({
                     )}
                     {step.input && (
                       <div>
-                        <div className="text-gray-400 mb-0.5">Input:</div>
+                        <div className="text-gray-400 mb-0.5">Input / Parameters:</div>
                         <pre className="p-2 rounded bg-gray-900 border border-gray-800 text-gray-300 overflow-x-auto text-[10px]">
                           {JSON.stringify(step.input, null, 2)}
                         </pre>
@@ -130,7 +132,7 @@ export const AgentTracePanel: React.FC<AgentTracePanelProps> = ({
                     )}
                     {step.output && (
                       <div>
-                        <div className="text-gray-400 mb-0.5">Output:</div>
+                        <div className="text-gray-400 mb-0.5">Output / Records:</div>
                         <pre className="p-2 rounded bg-gray-900 border border-gray-800 text-gray-300 overflow-x-auto text-[10px]">
                           {JSON.stringify(step.output, null, 2)}
                         </pre>
@@ -147,16 +149,32 @@ export const AgentTracePanel: React.FC<AgentTracePanelProps> = ({
         {selectedSources.length > 0 && (
           <div className="mt-4 pt-4 border-t border-gray-800">
             <h4 className="text-xs font-semibold text-gray-300 mb-2 flex items-center gap-1.5">
-              <BookOpen className="w-3.5 h-3.5 text-cyan-400" /> Grounded Evidence Sources
+              <BookOpen className="w-3.5 h-3.5 text-cyan-400" /> Grounded Evidence Citations
             </h4>
             <div className="space-y-2">
               {selectedSources.map((source, idx) => (
-                <div key={idx} className="p-2 rounded bg-gray-900/80 border border-gray-800 text-[11px]">
-                  <span className="px-1.5 py-0.2 rounded font-mono text-[9px] bg-indigo-500/20 text-indigo-300 uppercase mr-1.5">
-                    {source.type}
-                  </span>
-                  <span className="text-gray-200 font-medium">{source.title}</span>
-                  {source.page && <span className="text-gray-400 ml-1.5">• Pg {source.page}</span>}
+                <div key={idx} className="p-2 rounded bg-gray-900/80 border border-gray-800 text-[11px] space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="px-1.5 py-0.2 rounded font-mono text-[9px] bg-indigo-500/20 text-indigo-300 uppercase">
+                      {source.type || 'Source'}
+                    </span>
+                    {source.isMock ? (
+                      <span className="text-[9px] font-mono text-amber-400 flex items-center gap-0.5">
+                        <AlertTriangle className="w-2.5 h-2.5" /> DEMO DATA
+                      </span>
+                    ) : (
+                      <span className="text-[9px] font-mono text-emerald-400 flex items-center gap-0.5">
+                        <Shield className="w-2.5 h-2.5" /> OFFICIAL
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-gray-200 font-medium">{source.source || source.title}</div>
+                  {source.datasetId && (
+                    <div className="text-[10px] font-mono text-gray-400">Dataset: {source.datasetId}</div>
+                  )}
+                  {source.details && (
+                    <div className="text-[10px] text-gray-400 line-clamp-2">{source.details}</div>
+                  )}
                 </div>
               ))}
             </div>

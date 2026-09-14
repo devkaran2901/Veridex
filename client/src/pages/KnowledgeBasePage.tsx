@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Upload, FileText, Trash2, Database, CheckCircle, Clock, Search, RefreshCw, Sparkles, Shield, Layers, Calendar } from 'lucide-react';
+import { Upload, FileText, Trash2, Database, CheckCircle, Clock, RefreshCw, Sparkles, Shield, Tag, AlertTriangle } from 'lucide-react';
 
 interface DocumentItem {
   id: string;
@@ -16,9 +16,11 @@ interface DatasetItem {
   id: string;
   name: string;
   source: string;
+  publisher?: string;
   description: string;
   last_synced_at?: string;
   record_count: number;
+  is_mock?: boolean;
 }
 
 interface KnowledgeRecordItem {
@@ -30,6 +32,8 @@ interface KnowledgeRecordItem {
   content: string;
   structured_data: any;
   valid_from: string;
+  observed_at?: string;
+  version?: number;
 }
 
 export const KnowledgeBasePage: React.FC = () => {
@@ -37,12 +41,10 @@ export const KnowledgeBasePage: React.FC = () => {
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [datasets, setDatasets] = useState<DatasetItem[]>([]);
   const [knowledgeRecords, setKnowledgeRecords] = useState<KnowledgeRecordItem[]>([]);
+  const [statusInfo, setStatusInfo] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [searching, setSearching] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -52,15 +54,17 @@ export const KnowledgeBasePage: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [docRes, dsRes, recRes] = await Promise.all([
+      const [docRes, dsRes, recRes, statusRes] = await Promise.all([
         fetch('/api/documents'),
         fetch('/api/ingestion/datasets'),
         fetch('/api/ingestion/records'),
+        fetch('/api/ingestion/status'),
       ]);
 
       if (docRes.ok) setDocuments(await docRes.json());
       if (dsRes.ok) setDatasets(await dsRes.json());
       if (recRes.ok) setKnowledgeRecords(await recRes.json());
+      if (statusRes.ok) setStatusInfo(await statusRes.json());
     } catch (err) {
       console.error(err);
     } finally {
@@ -121,38 +125,28 @@ export const KnowledgeBasePage: React.FC = () => {
     }
   };
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
-
-    try {
-      setSearching(true);
-      const res = await fetch('/api/documents/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: searchQuery }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSearchResults(data.chunks || []);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSearching(false);
-    }
-  };
-
   return (
     <div className="flex-1 p-8 overflow-y-auto bg-[#0b0f19]/60 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-gray-800 pb-4">
         <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <Database className="w-6 h-6 text-indigo-400" /> Veridex Knowledge Layer
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <Database className="w-6 h-6 text-indigo-400" /> Veridex Knowledge Layer
+            </h2>
+            {statusInfo && (
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1 border ${
+                statusInfo.dataMode === 'live' 
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
+                  : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+              }`}>
+                {statusInfo.dataMode === 'live' ? <Shield className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
+                Mode: {statusInfo.dataMode?.toUpperCase()}
+              </span>
+            )}
+          </div>
           <p className="text-sm text-gray-400 mt-1">
-            Live Government Ingestion Pipeline (IMD, data.gov.in, NDMA) + PostgreSQL pgvector Hybrid Retrieval.
+            Continuous Live Government Ingestion Pipeline (IMD, data.gov.in, NDMA) + PostgreSQL pgvector Hybrid Retrieval.
           </p>
         </div>
 
@@ -202,7 +196,7 @@ export const KnowledgeBasePage: React.FC = () => {
               : 'border-transparent text-gray-400 hover:text-gray-200'
           }`}
         >
-          <Sparkles className="w-4 h-4" /> Live Ingested Knowledge Layer
+          <Sparkles className="w-4 h-4" /> Live Ingested Knowledge Layer ({knowledgeRecords.length})
         </button>
 
         <button
@@ -213,7 +207,7 @@ export const KnowledgeBasePage: React.FC = () => {
               : 'border-transparent text-gray-400 hover:text-gray-200'
           }`}
         >
-          <FileText className="w-4 h-4" /> Static Document Uploads (PDF / TXT)
+          <FileText className="w-4 h-4" /> Static Document Uploads ({documents.length})
         </button>
       </div>
 
@@ -223,7 +217,7 @@ export const KnowledgeBasePage: React.FC = () => {
           {/* Government Datasets Explorer Cards */}
           <div>
             <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-              Government Datasets Registry & Live Ingestion Sources
+              Government Open Datasets Registry & Provider Catalog
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {datasets.map((ds) => (
@@ -238,6 +232,10 @@ export const KnowledgeBasePage: React.FC = () => {
                   </div>
                   <h4 className="font-semibold text-xs text-white leading-snug">{ds.name}</h4>
                   <p className="text-[11px] text-gray-400 line-clamp-2">{ds.description}</p>
+                  <div className="pt-2 flex items-center justify-between border-t border-gray-800/60 text-[10px] text-gray-500">
+                    <span>Records: <strong className="text-indigo-400">{ds.record_count}</strong></span>
+                    {ds.is_mock && <span className="text-amber-400 font-mono">[DEMO REGISTRY]</span>}
+                  </div>
                 </div>
               ))}
             </div>
@@ -250,7 +248,7 @@ export const KnowledgeBasePage: React.FC = () => {
                 <Shield className="w-4 h-4 text-emerald-400" /> PostgreSQL pgvector Knowledge Records ({knowledgeRecords.length})
               </span>
               <span className="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
-                SHA-256 Deduplication Active
+                SHA-256 Deduplication & Versioning Active
               </span>
             </div>
 
@@ -264,6 +262,7 @@ export const KnowledgeBasePage: React.FC = () => {
                   <tr>
                     <th className="p-4">Source</th>
                     <th className="p-4">Title</th>
+                    <th className="p-4">Version</th>
                     <th className="p-4">Freshness</th>
                     <th className="p-4">Valid From</th>
                   </tr>
@@ -273,6 +272,11 @@ export const KnowledgeBasePage: React.FC = () => {
                     <tr key={rec.id} className="hover:bg-gray-800/30 text-xs">
                       <td className="p-4 font-mono text-indigo-300">{rec.source}</td>
                       <td className="p-4 font-medium text-white max-w-sm truncate">{rec.title}</td>
+                      <td className="p-4">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                          v{rec.version || 1}
+                        </span>
+                      </td>
                       <td className="p-4">
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1 w-max">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />

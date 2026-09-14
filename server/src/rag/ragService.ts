@@ -3,6 +3,8 @@ import { query } from '../database/db';
 import { generateEmbedding } from '../services/embedding';
 import { chunkText } from './chunker';
 
+import { config } from '../config/env';
+
 const DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000001';
 
 export interface SearchResultChunk {
@@ -133,17 +135,20 @@ export async function searchKnowledgeBase(
       similarity: parseFloat(row.similarity.toFixed(4)),
     }));
   } catch (err: any) {
-    console.warn('⚠️ Knowledge base DB query failed (DB offline), returning fallback RAG document:', err.message);
-    return [
-      {
-        chunkId: 'mock-chunk-1',
-        documentId: 'mock-doc-1',
-        documentTitle: 'Government Disaster Management Guidelines.pdf',
-        source: 'Government Advisory Report',
-        content: 'Heavy rainfall and urban flooding cause significant transportation delays. Commuters are advised to restrict movement during severe weather alerts.',
-        pageNumber: 17,
-        similarity: 0.89,
-      },
-    ];
+    console.warn('⚠️ Knowledge base DB query failed:', err.message);
+    if (config.dataMode === 'demo') {
+      return [
+        {
+          chunkId: 'mock-chunk-1',
+          documentId: 'mock-doc-1',
+          documentTitle: '[MOCK / DEMO] Government Disaster Management Guidelines.pdf',
+          source: 'Government Advisory Report (Demo)',
+          content: '[DEMO FALLBACK RECORD] Heavy rainfall and urban flooding cause significant transportation delays. Commuters are advised to restrict movement during severe weather alerts.',
+          pageNumber: 17,
+          similarity: 0.89,
+        },
+      ];
+    }
+    return [];
   }
 }

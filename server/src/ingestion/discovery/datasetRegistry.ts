@@ -1,4 +1,4 @@
-import { DatasetMetadata, DatasetProvider, KnowledgeRecordInput } from '../types';
+import { DatasetMetadata, GovernmentDataProvider, KnowledgeRecordInput } from '../types';
 import { getLiveWeather } from '../../tools/weatherProvider';
 import { getGovernmentData } from '../../tools/governmentDataProvider';
 import { config } from '../../config/env';
@@ -6,16 +6,61 @@ import { config } from '../../config/env';
 /**
  * IMD (India Meteorological Department) Weather & Rainfall Feed Provider
  */
-export class IMDProvider implements DatasetProvider {
+export class IMDProvider implements GovernmentDataProvider {
   id = 'imd_daily_weather';
   name = 'IMD Daily Meteorological & District Weather Feed';
   source = 'IMD (India Meteorological Department)';
+  publisher = 'India Meteorological Department (Ministry of Earth Sciences)';
   description = 'Real-time temperature, precipitation probability, humidity, and weather alerts for Indian urban centers and districts.';
   category = 'weather' as const;
+  isMock = false;
 
-  async fetchLatestData(): Promise<KnowledgeRecordInput[]> {
-    const locations = ['Delhi', 'Jalandhar', 'Shimla', 'Mumbai', 'Amritsar', 'Ludhiana'];
+  async searchDatasets(queryText: string): Promise<DatasetMetadata[]> {
+    const q = queryText.toLowerCase();
+    if (
+      q.includes('weather') ||
+      q.includes('rain') ||
+      q.includes('temp') ||
+      q.includes('forecast') ||
+      q.includes('imd') ||
+      q.includes('punjab') ||
+      q.includes('delhi') ||
+      q.includes('district')
+    ) {
+      return [await this.getDatasetMetadata(this.id)];
+    }
+    return [];
+  }
+
+  async getDatasetMetadata(datasetId: string): Promise<DatasetMetadata> {
+    return {
+      id: this.id,
+      name: this.name,
+      source: this.source,
+      publisher: this.publisher,
+      description: this.description,
+      category: this.category,
+      apiAvailable: true,
+      schema: ['location', 'temperatureC', 'condition', 'humidity', 'precipitationProb', 'advisoryAlert'],
+      geography: 'India',
+      geographicCoverage: 'National / District Level',
+      temporalCoverage: 'Real-time / Hourly',
+      updateFrequency: 'Continuously (Hourly Feed)',
+      lastUpdated: new Date().toISOString(),
+      sourceUrl: 'https://mausam.imd.gov.in',
+      recordCount: 10,
+      isMock: false,
+    };
+  }
+
+  async fetchDataset(datasetId: string, options?: Record<string, any>): Promise<KnowledgeRecordInput[]> {
+    return this.fetchLatestData(datasetId, options);
+  }
+
+  async fetchLatestData(_datasetId?: string, options?: Record<string, any>): Promise<KnowledgeRecordInput[]> {
+    const locations = options?.locations || ['Delhi', 'Jalandhar', 'Shimla', 'Mumbai', 'Amritsar', 'Ludhiana', 'Patiala', 'Bathinda'];
     const records: KnowledgeRecordInput[] = [];
+    const now = new Date();
 
     for (const loc of locations) {
       const w = await getLiveWeather(loc);
@@ -35,12 +80,16 @@ export class IMDProvider implements DatasetProvider {
         },
         metadata: {
           issuingAuthority: 'India Meteorological Department',
+          publisher: this.publisher,
           region: w.location,
           sourceUrl: 'https://mausam.imd.gov.in',
         },
-        timestamp: new Date(),
-        validFrom: new Date(),
+        timestamp: now,
+        observedAt: now,
+        retrievedAt: now,
+        validFrom: now,
         validUntil: new Date(Date.now() + 6 * 60 * 60 * 1000), // 6 hours validity
+        isMock: false,
       });
     }
 
@@ -51,12 +100,14 @@ export class IMDProvider implements DatasetProvider {
 /**
  * Authentic data.gov.in (Open Government Data Portal India) Provider
  */
-export class DataGovProvider implements DatasetProvider {
+export class DataGovProvider implements GovernmentDataProvider {
   id = 'datagov_open_catalog';
   name = 'data.gov.in Official Open Data Catalog';
   source = 'data.gov.in (Open Government Data Portal India)';
+  publisher = 'National Informatics Centre / Ministry of Electronics & IT';
   description = 'Official open government dataset catalog covering rainfall, water resources, agriculture, and public statistics.';
   category = 'rainfall' as const;
+  isMock = false;
 
   // Known catalog resource IDs on data.gov.in OGD platform
   private knownResources = [
@@ -64,19 +115,25 @@ export class DataGovProvider implements DatasetProvider {
       id: 'punjab_rainfall_stat',
       name: 'District-wise Monthly Rainfall Statistics for Punjab',
       resourceId: '9ef92705-7c8e-4b1d-b439-d79050d26a7e',
+      publisher: 'Ministry of Jal Shakti / IMD',
       description: 'Official monthly rainfall departure and baseline precipitation metrics published by Ministry of Jal Shakti / IMD.',
       geography: 'Punjab',
       category: 'rainfall' as const,
       schema: ['district', 'rainfall_mm', 'normal_mm', 'departure_percent', 'status'],
+      updateFrequency: 'Monthly / Daily Bulletins',
+      temporalCoverage: 'Recent & Current Monsoon Season',
     },
     {
       id: 'all_india_crop_production',
       name: 'All India Crop Production Statistics',
       resourceId: '3b01478b-b8db-4274-b5d1-72a396247721',
+      publisher: 'Ministry of Agriculture and Farmers Welfare',
       description: 'District level crop production and yield statistics.',
       geography: 'India',
       category: 'agriculture' as const,
       schema: ['state', 'district', 'crop', 'year', 'season', 'area_hectares', 'production_tonnes'],
+      updateFrequency: 'Annual / Seasonal',
+      temporalCoverage: 'Historical & Recent',
     },
   ];
 
@@ -101,10 +158,16 @@ export class DataGovProvider implements DatasetProvider {
               id: r.id || `datagov_${idx}`,
               name: r.title || 'data.gov.in Dataset',
               source: this.source,
+              publisher: r.org?.[0] || this.publisher,
               description: r.desc || r.title || 'Official Government Open Dataset',
               category: 'general' as const,
               apiAvailable: true,
               schema: r.field ? r.field.map((f: any) => f.name) : [],
+              geography: r.sector || 'India',
+              geographicCoverage: 'National / State Level',
+              temporalCoverage: r.created_date || 'Recent',
+              updateFrequency: 'Periodic API Update',
+              lastUpdated: r.updated_date || new Date().toISOString(),
               sourceUrl: r.url || 'https://data.gov.in',
               recordCount: parseInt(r.total_records || '10', 10),
               isMock: false,
@@ -112,11 +175,11 @@ export class DataGovProvider implements DatasetProvider {
           }
         }
       } catch (err: any) {
-        console.warn('⚠️ data.gov.in online catalog search unavailable:', err.message);
+        console.warn('⚠️ data.gov.in online catalog search API unavailable:', err.message);
       }
     }
 
-    // Fallback to static catalog metadata definitions (without fake numbers)
+    // Fallback to static catalog metadata registry (without inventing numbers in live mode)
     return this.knownResources
       .filter((r) =>
         r.name.toLowerCase().includes(q) ||
@@ -126,25 +189,37 @@ export class DataGovProvider implements DatasetProvider {
         q.includes('rain') ||
         q.includes('punjab') ||
         q.includes('government') ||
-        q.includes('dataset')
+        q.includes('dataset') ||
+        q.includes('crop')
       )
       .map((r) => ({
         id: r.id,
         name: r.name,
         source: this.source,
+        publisher: r.publisher,
         description: r.description,
         category: r.category,
         apiAvailable: Boolean(apiKey),
         schema: r.schema,
         geography: r.geography,
+        geographicCoverage: `${r.geography} Region`,
+        temporalCoverage: r.temporalCoverage,
+        updateFrequency: r.updateFrequency,
+        lastUpdated: new Date().toISOString(),
         sourceUrl: `https://data.gov.in/resource/${r.resourceId}`,
         recordCount: 0,
         isMock: false,
       }));
   }
 
-  async fetchDataset(datasetId: string): Promise<KnowledgeRecordInput[]> {
+  async getDatasetMetadata(datasetId: string): Promise<DatasetMetadata | null> {
+    const datasets = await this.searchDatasets(datasetId);
+    return datasets.find((d) => d.id === datasetId) || null;
+  }
+
+  async fetchDataset(datasetId: string, _options?: Record<string, any>): Promise<KnowledgeRecordInput[]> {
     const apiKey = config.datagovApiKey;
+    const now = new Date();
 
     if (!apiKey) {
       console.warn(`⚠️ DATAGOV_API_KEY is not configured in .env. Skipping live API fetch for dataset ${datasetId}.`);
@@ -153,19 +228,23 @@ export class DataGovProvider implements DatasetProvider {
           source: this.source,
           sourceType: 'dataset',
           datasetId: datasetId,
-          title: `data.gov.in API Access Status - ${datasetId}`,
-          content: `data.gov.in Dataset [${datasetId}] is registered in the government open catalog, but DATAGOV_API_KEY is not configured. Set DATAGOV_API_KEY in .env to enable automated live record fetching.`,
+          title: `data.gov.in Open Catalog Metadata - ${datasetId}`,
+          content: `data.gov.in Dataset [${datasetId}] is registered in the official open government catalog. Set DATAGOV_API_KEY in .env to pull live real-time API records directly into PostgreSQL knowledge_records.`,
           structuredData: {
             datasetId,
-            status: 'API_KEY_REQUIRED',
+            status: 'CATALOG_INDEXED_API_KEY_REQUIRED',
             apiKeyConfigured: false,
           },
           metadata: {
             issuingAuthority: 'Open Government Data Portal India',
+            publisher: this.publisher,
             sourceUrl: 'https://data.gov.in',
           },
-          timestamp: new Date(),
-          validFrom: new Date(),
+          timestamp: now,
+          observedAt: now,
+          retrievedAt: now,
+          validFrom: now,
+          isMock: false,
         },
       ];
     }
@@ -178,7 +257,7 @@ export class DataGovProvider implements DatasetProvider {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-      const fetchUrl = `https://api.data.gov.in/resource/${resourceId}?api-key=${encodeURIComponent(apiKey)}&format=json&limit=10`;
+      const fetchUrl = `https://api.data.gov.in/resource/${resourceId}?api-key=${encodeURIComponent(apiKey)}&format=json&limit=15`;
       const response = await fetch(fetchUrl, { signal: controller.signal });
       clearTimeout(timeoutId);
 
@@ -193,16 +272,20 @@ export class DataGovProvider implements DatasetProvider {
         source: this.source,
         sourceType: 'dataset',
         datasetId: datasetId,
-        title: `data.gov.in Record #${idx + 1} - ${item.district || item.state || datasetId}`,
-        content: `Official Government Record: ${JSON.stringify(item)}`,
+        title: `data.gov.in Official Record #${idx + 1} - ${item.district || item.state || datasetId}`,
+        content: `Official Government Record from data.gov.in (${resource?.name || datasetId}): ${JSON.stringify(item)}`,
         structuredData: item,
         metadata: {
           issuingAuthority: json.org?.[0] || 'Government of India',
+          publisher: json.org?.[0] || this.publisher,
           sourceUrl: `https://data.gov.in/resource/${resourceId}`,
           title: json.title,
         },
-        timestamp: new Date(),
-        validFrom: new Date(),
+        timestamp: now,
+        observedAt: now,
+        retrievedAt: now,
+        validFrom: now,
+        isMock: false,
       }));
 
     } catch (err: any) {
@@ -212,7 +295,7 @@ export class DataGovProvider implements DatasetProvider {
           source: this.source,
           sourceType: 'dataset',
           datasetId: datasetId,
-          title: `data.gov.in API Error - ${datasetId}`,
+          title: `data.gov.in API Status - ${datasetId}`,
           content: `Unable to fetch live records for dataset ${datasetId} from data.gov.in: ${err.message}`,
           structuredData: {
             datasetId,
@@ -222,30 +305,77 @@ export class DataGovProvider implements DatasetProvider {
           metadata: {
             sourceUrl: 'https://data.gov.in',
           },
-          timestamp: new Date(),
-          validFrom: new Date(),
+          timestamp: now,
+          observedAt: now,
+          retrievedAt: now,
+          validFrom: now,
+          isMock: false,
         },
       ];
     }
   }
 
-  async fetchLatestData(): Promise<KnowledgeRecordInput[]> {
-    return this.fetchDataset('punjab_rainfall_stat');
+  async fetchLatestData(datasetId?: string, options?: Record<string, any>): Promise<KnowledgeRecordInput[]> {
+    return this.fetchDataset(datasetId || 'punjab_rainfall_stat', options);
   }
 }
 
 /**
  * NDMA National Disaster Management Authority Guidelines & Bulletins Provider
  */
-export class NDMAProvider implements DatasetProvider {
+export class NDMAProvider implements GovernmentDataProvider {
   id = 'ndma_flood_advisory_2026';
   name = 'NDMA Preparedness & Advisory Bulletins';
   source = 'NDMA (National Disaster Management Authority)';
+  publisher = 'National Disaster Management Authority (Ministry of Home Affairs)';
   description = 'Official disaster preparedness guidelines, urban flooding advisories, and emergency response directives.';
   category = 'disaster' as const;
+  isMock = false;
 
-  async fetchLatestData(): Promise<KnowledgeRecordInput[]> {
+  async searchDatasets(queryText: string): Promise<DatasetMetadata[]> {
+    const q = queryText.toLowerCase();
+    if (
+      q.includes('flood') ||
+      q.includes('disaster') ||
+      q.includes('ndma') ||
+      q.includes('advisory') ||
+      q.includes('guidance') ||
+      q.includes('recommend') ||
+      q.includes('emergency')
+    ) {
+      return [await this.getDatasetMetadata(this.id)];
+    }
+    return [];
+  }
+
+  async getDatasetMetadata(datasetId: string): Promise<DatasetMetadata> {
+    return {
+      id: this.id,
+      name: this.name,
+      source: this.source,
+      publisher: this.publisher,
+      description: this.description,
+      category: this.category,
+      apiAvailable: true,
+      schema: ['topic', 'advisoryLevel', 'issuingAuthority', 'summary', 'bulletins'],
+      geography: 'India',
+      geographicCoverage: 'National',
+      temporalCoverage: 'Active Advisories 2026',
+      updateFrequency: 'Real-Time Emergency Directives',
+      lastUpdated: new Date().toISOString(),
+      sourceUrl: 'https://ndma.gov.in',
+      recordCount: 5,
+      isMock: false,
+    };
+  }
+
+  async fetchDataset(datasetId: string, options?: Record<string, any>): Promise<KnowledgeRecordInput[]> {
+    return this.fetchLatestData(datasetId, options);
+  }
+
+  async fetchLatestData(_datasetId?: string, _options?: Record<string, any>): Promise<KnowledgeRecordInput[]> {
     const govData = await getGovernmentData('Flood & Transit Advisory', 'Punjab & North India');
+    const now = new Date();
 
     return [
       {
@@ -262,11 +392,15 @@ export class NDMAProvider implements DatasetProvider {
         },
         metadata: {
           issuingAuthority: govData.issuingAuthority,
+          publisher: this.publisher,
           advisoryLevel: govData.advisoryLevel,
           sourceUrl: 'https://ndma.gov.in',
         },
-        timestamp: new Date(),
-        validFrom: new Date(),
+        timestamp: now,
+        observedAt: now,
+        retrievedAt: now,
+        validFrom: now,
+        isMock: false,
       },
     ];
   }
@@ -275,15 +409,49 @@ export class NDMAProvider implements DatasetProvider {
 /**
  * Explicit DEMO Mode Mock Provider (Strictly Labeled, Used ONLY in DEMO/Test Mode)
  */
-export class MockDataGovProvider implements DatasetProvider {
+export class MockDataGovProvider implements GovernmentDataProvider {
   id = 'demo_punjab_rainfall_mock';
   name = 'MOCK / DEMO Punjab District Rainfall Statistics (Test Data)';
   source = 'MOCK / DEMO (data.gov.in Example Data)';
+  publisher = 'Veridex Demo Generator (Synthetic Data)';
   description = 'Explicitly labeled synthetic test data for offline evaluation. NOT official government data.';
   category = 'rainfall' as const;
   isMock = true;
 
-  async fetchLatestData(): Promise<KnowledgeRecordInput[]> {
+  async searchDatasets(_queryText: string): Promise<DatasetMetadata[]> {
+    if (config.dataMode !== 'demo') return [];
+    return [await this.getDatasetMetadata(this.id)];
+  }
+
+  async getDatasetMetadata(datasetId: string): Promise<DatasetMetadata> {
+    return {
+      id: this.id,
+      name: this.name,
+      source: this.source,
+      publisher: this.publisher,
+      description: this.description,
+      category: this.category,
+      apiAvailable: false,
+      schema: ['district', 'rainfallMm', 'normalMm', 'departurePercent', 'classification', 'isMock'],
+      geography: 'Punjab',
+      geographicCoverage: 'Punjab State',
+      temporalCoverage: 'Synthetic Demo Window',
+      updateFrequency: 'Manual Demo Trigger',
+      lastUpdated: new Date().toISOString(),
+      sourceUrl: 'https://data.gov.in',
+      recordCount: 2,
+      isMock: true,
+    };
+  }
+
+  async fetchDataset(datasetId: string, options?: Record<string, any>): Promise<KnowledgeRecordInput[]> {
+    return this.fetchLatestData(datasetId, options);
+  }
+
+  async fetchLatestData(_datasetId?: string, _options?: Record<string, any>): Promise<KnowledgeRecordInput[]> {
+    if (config.dataMode !== 'demo') return [];
+    const now = new Date();
+
     const demoDistricts = [
       { name: 'Jalandhar', rainfallMm: 84.5, normalMm: 52.0, status: 'Excess' },
       { name: 'Amritsar', rainfallMm: 92.1, normalMm: 60.0, status: 'Excess' },
@@ -305,23 +473,27 @@ export class MockDataGovProvider implements DatasetProvider {
       },
       metadata: {
         issuingAuthority: 'Veridex Test Suite (Mock Data)',
+        publisher: this.publisher,
         state: 'Punjab',
         isMock: true,
       },
-      timestamp: new Date(),
-      validFrom: new Date(),
+      timestamp: now,
+      observedAt: now,
+      retrievedAt: now,
+      validFrom: now,
+      isMock: true,
     }));
   }
 }
 
 // Global Provider Registry Catalog
-export const REGISTERED_PROVIDERS: DatasetProvider[] = [
+export const REGISTERED_PROVIDERS: GovernmentDataProvider[] = [
   new IMDProvider(),
   new DataGovProvider(),
   new NDMAProvider(),
 ];
 
-if (config.demoMode) {
+if (config.dataMode === 'demo') {
   REGISTERED_PROVIDERS.push(new MockDataGovProvider());
 }
 
@@ -330,48 +502,22 @@ if (config.demoMode) {
  * Searches open dataset catalogs, ranks candidates, and returns schema/metadata.
  */
 export async function discoverDatasets(queryText: string): Promise<DatasetMetadata[]> {
-  const q = queryText.toLowerCase();
   const matched: DatasetMetadata[] = [];
+  const seenIds = new Set<string>();
 
-  // 1. Search data.gov.in provider
-  const dataGov = REGISTERED_PROVIDERS.find((p) => p instanceof DataGovProvider) as DataGovProvider | undefined;
-  if (dataGov && dataGov.searchDatasets) {
-    const dataGovResults = await dataGov.searchDatasets(queryText);
-    matched.push(...dataGovResults);
-  }
-
-  // 2. Search other registered providers (IMD, NDMA)
   for (const provider of REGISTERED_PROVIDERS) {
-    if (provider instanceof DataGovProvider) continue; // Already searched above
+    if (provider.isMock && config.dataMode !== 'demo') continue;
 
-    const matchesQuery =
-      q.includes('weather') ||
-      q.includes('rain') ||
-      q.includes('temp') ||
-      q.includes('flood') ||
-      q.includes('advisory') ||
-      q.includes('disaster') ||
-      q.includes('government') ||
-      q.includes('dataset') ||
-      provider.name.toLowerCase().includes(q) ||
-      provider.description.toLowerCase().includes(q);
-
-    if (matchesQuery) {
-      matched.push({
-        id: provider.id,
-        name: provider.name,
-        source: provider.source,
-        description: provider.description,
-        category: provider.category,
-        apiAvailable: true,
-        schema: provider.category === 'weather' 
-          ? ['location', 'temperatureC', 'condition', 'humidity', 'precipitationProb'] 
-          : ['topic', 'advisoryLevel', 'summary', 'bulletins'],
-        geography: 'India',
-        sourceUrl: provider.category === 'weather' ? 'https://mausam.imd.gov.in' : 'https://ndma.gov.in',
-        recordCount: 5,
-        isMock: provider.isMock || false,
-      });
+    try {
+      const providerResults = await provider.searchDatasets(queryText);
+      for (const ds of providerResults) {
+        if (!seenIds.has(ds.id)) {
+          seenIds.add(ds.id);
+          matched.push(ds);
+        }
+      }
+    } catch (err: any) {
+      console.warn(`⚠️ Dataset discovery error in provider ${provider.id}:`, err.message);
     }
   }
 
@@ -382,23 +528,33 @@ export async function discoverDatasets(queryText: string): Promise<DatasetMetada
  * Get Metadata for a specific dataset ID
  */
 export async function getDatasetMetadata(datasetId: string): Promise<DatasetMetadata | null> {
-  const datasets = await discoverDatasets(datasetId);
-  return datasets.find((d) => d.id === datasetId) || null;
+  for (const provider of REGISTERED_PROVIDERS) {
+    if (provider.isMock && config.dataMode !== 'demo') continue;
+    try {
+      const meta = await provider.getDatasetMetadata(datasetId);
+      if (meta) return meta;
+    } catch (err) {
+      // Continue to next provider
+    }
+  }
+  return null;
 }
 
 /**
  * Fetch raw dataset records for a dataset ID
  */
-export async function fetchDatasetRecords(datasetId: string): Promise<KnowledgeRecordInput[]> {
-  const provider = REGISTERED_PROVIDERS.find((p) => p.id === datasetId);
-  if (provider) {
-    return provider.fetchLatestData();
+export async function fetchDatasetRecords(datasetId: string, options?: Record<string, any>): Promise<KnowledgeRecordInput[]> {
+  for (const provider of REGISTERED_PROVIDERS) {
+    if (provider.isMock && config.dataMode !== 'demo') continue;
+    if (provider.id === datasetId || datasetId.includes(provider.id)) {
+      return provider.fetchLatestData(datasetId, options);
+    }
   }
 
-  // Check if data.gov.in provider can fetch it
+  // Check data.gov.in provider
   const dataGov = REGISTERED_PROVIDERS.find((p) => p instanceof DataGovProvider) as DataGovProvider | undefined;
-  if (dataGov && dataGov.fetchDataset) {
-    return dataGov.fetchDataset(datasetId);
+  if (dataGov) {
+    return dataGov.fetchDataset(datasetId, options);
   }
 
   return [];

@@ -1,46 +1,57 @@
-# Veridex: Agentic RAG System over Live Data with Long-Term Memory
+# Veridex: Agentic RAG System over Continuously Updated Live Data with Long-Term Memory
 
-**Veridex** is a BTech CSE final-year project demonstrating a full-stack **Agentic RAG Engine** built with **React (Vite + Tailwind CSS)**, **Node.js (Express + TypeScript)**, **LangGraph.js**, **PostgreSQL with `pgvector`**, and **Socket.IO** for real-time agent execution streaming.
+**Veridex** is an advanced **Agentic RAG Engine** built with **React (Vite + Tailwind CSS)**, **Node.js (Express + TypeScript)**, **LangGraph.js**, **PostgreSQL with `pgvector`**, and **Socket.IO** for real-time agent execution streaming.
 
-Unlike basic chatbots that blindly perform vector search on every question, Veridex is genuinely **agentic**. It dynamically analyzes user queries, determines which tools are needed (Live APIs, Vector RAG Knowledge Base, Long-Term User Memories, or Database analytics), executes selected tools, evaluates evidence sufficiency, and synthesizes grounded answers with strict source citations.
+Unlike basic chatbots that blindly perform vector search or call direct API tools on every query, Veridex implements a **Continuously Updated Live Knowledge Layer**. Live government data (IMD weather feeds, data.gov.in datasets, NDMA advisories) is continuously ingested, validated, deduplicated via SHA-256, versioned, and indexed into PostgreSQL `knowledge_records`. An **LLM Structured Planner** formulates typed retrieval plans and executes hybrid vector + parameterized SQL queries with freshness decay scoring.
 
 ---
 
-## 1. Core System Architecture
+## 1. System Architecture
 
-```mermaid
-flowchart TD
-    User([User / Browser]) <-->|HTTP REST & WebSockets| Frontend[React + Vite + Tailwind Dashboard]
-    Frontend <-->|REST API + Socket.IO| Backend[Node.js + Express + TypeScript]
-
-    subgraph LangGraph Agent Engine
-        Analyze[Analyze Query Node] --> Decide{Tool Selector}
-        Decide -->|Weather Query| Weather[getLiveWeather API]
-        Decide -->|Disaster/Gov Advisory| GovData[getGovernmentData API]
-        Decide -->|Document Query| RAG[searchKnowledgeBase RAG]
-        Decide -->|User Habit/Preference| Memory[searchMemory Long-Term Memory]
-        
-        Weather --> Eval[Evaluate Evidence Node]
-        GovData --> Eval
-        RAG --> Eval
-        Memory --> Eval
-        
-        Eval -->|Sufficient Context| Synthesize[Grounded LLM Synthesis Node]
-        Eval -->|Needs More Info| Decide
-    end
-
-    Backend <--> LangGraph Agent Engine
-
-    subgraph PostgreSQL + pgvector Persistence
-        PG[(PostgreSQL Database)]
-        PG --> Documents[(documents & document_chunks + vector)]
-        PG --> Memories[(memories + vector)]
-        PG --> AgentRuns[(agent_runs & tool_calls audit log)]
-        PG --> Cache[(live_data_cache)]
-    end
-
-    RAG <-->|Cosine Similarity Search| Documents
-    Memory <-->|Vector Search + Importance Weighting| Memories
+```
+USER QUERY
+    │
+    ▼
+┌───────────────────────────────┐
+│     LLM STRUCTURED PLANNER    │
+│  (RetrievalPlan Generator)    │
+└───────────────┬───────────────┘
+                │ Typed Retrieval Plan
+  ┌─────────────┼───────────────┬─────────────────┐
+  ▼             ▼               ▼                 ▼
+Dataset       Live Knowledge   Static RAG        Memory
+Discovery     Layer Search     (PDF Chunks)      Layer Search
+(data.gov.in) (pgvector/SQL)   (pgvector)        (pgvector)
+  │             │               │                 │
+  └─────────────┼───────────────┴─────────────────┘
+                ▼
+  ┌──────────────────────────┐
+  │ CONTINUOUS LIVE INGESTION│ ◄── Background Scheduler Worker
+  │ Provider ──► Normalizer  │ (IMD, data.gov.in, NDMA)
+  │ ──► Validator ──► Dedupe │
+  │ (SHA256) ──► Versioning  │
+  └─────────────┬────────────┘
+                ▼
+  ┌──────────────────────────┐
+  │ PostgreSQL + pgvector    │
+  │ (knowledge_records)      │
+  └─────────────┬────────────┘
+                ▼
+  ┌──────────────────────────┐
+  │ Hybrid Freshness-Aware   │
+  │ Retrieval & SQL Engine   │
+  └─────────────┬────────────┘
+                ▼
+  ┌──────────────────────────┐
+  │ Evidence Evaluation      │ ── Inadequate? ──► Refine Plan (Loop)
+  └─────────────┬────────────┘
+                ▼
+  ┌──────────────────────────┐
+  │ Grounded LLM Synthesis   │
+  │ + Traceable Citations    │
+  └─────────────┬────────────┘
+                ▼
+         Grounded Response + Sources + Data Age + Trace
 ```
 
 ---
@@ -51,87 +62,64 @@ flowchart TD
 | :--- | :--- | :--- |
 | **Frontend** | React 18, Vite, Tailwind CSS, Lucide Icons | Glassmorphism Dashboard with real-time execution trace panel |
 | **Backend** | Node.js, Express.js, TypeScript | Modular REST API and WebSocket event dispatching |
-| **Agent Engine** | LangGraph.js, LangChain.js, OpenAI API (`gpt-4o-mini`) | State machine workflow & multi-tool reasoning |
+| **Agent Engine** | LangGraph.js, LangChain.js, OpenAI / Groq LLMs | State machine workflow & structured LLM retrieval planning |
 | **Vector DB** | PostgreSQL 16 + `pgvector` extension | Vector embeddings storage (`vector(1536)`) with HNSW indexes |
-| **Live APIs** | `wttr.in` Weather API, Government NDMA Portal | Real-time weather and public disaster advisories |
+| **Live Ingestion** | IMD Weather, data.gov.in catalog, NDMA Advisories | Continuous background worker sync & SHA-256 deduplication |
 | **Real-Time** | Socket.IO | Streaming intermediate tool execution steps & latencies |
-| **DevOps** | Docker, Docker Compose | 1-command containerized infrastructure |
+| **DevOps** | Docker, Docker Compose | Containerized database infrastructure |
 
 ---
 
-## 3. Key Agent Tools
+## 3. Key Architectural Features
 
-The agent intelligently selects among the following registered tools:
-1. `getLiveWeather(location)`: Fetches real-time temperature, humidity, and rainfall probability via `wttr.in` or OpenWeather.
-2. `getGovernmentData(topic, location)`: Fetches disaster management bulletins and transit alerts.
-3. `searchKnowledgeBase(query)`: Performs vector similarity search over uploaded PDF/TXT document chunks in `pgvector`.
-4. `searchMemory(query)`: Retrieves long-term user preferences, habits, and past decisions.
-5. `saveMemory(content, memoryType, importance)`: Stores new preferences into PostgreSQL vector memory.
-6. `queryDatabase(queryType)`: Performs safe analytical queries over database statistics.
-7. `getCurrentTime()`: Fetches current system time and timezone context.
+1. **Live Knowledge Layer as Central Concept**:
+   External government data enters PostgreSQL `knowledge_records` via continuous ingestion workers. Agent reasoning operates over the indexed knowledge layer rather than raw direct API tools.
 
----
+2. **Strict Mode Boundaries (`DATA_MODE=live` vs `DATA_MODE=demo`)**:
+   - `DATA_MODE=live` (Default): If DB/APIs return no evidence, the system honestly reports that data is unavailable. No fake numbers or mock fallback records are fabricated.
+   - `DATA_MODE=demo`: Mock providers may be used for testing, and all mock records are prominently tagged `[DEMO DATA]`.
 
-## 4. PostgreSQL Database Schema
+3. **Data.gov.in Official Catalog & Dataset Discovery**:
+   Assisted by LLM intent generation, searches official data.gov.in endpoints (`https://api.data.gov.in/catalog/search` & `/resource/{id}`). Preserves schema, publisher, geographic, and temporal metadata.
 
-The system uses a unified PostgreSQL database with `pgvector` enabled:
+4. **Change Detection & Historical Version Snapshots**:
+   SHA-256 content hashing detects updates. Changed records increment `version = version + 1` and preserve previous version snapshots with `valid_until` timestamps, enabling temporal comparison queries ("What changed since yesterday?").
 
-- `users`: User profiles.
-- `conversations` & `messages`: Chat history and citation metadata.
-- `documents` & `document_chunks`: Document text passages with `vector(1536)` embeddings and HNSW indexes (`vector_cosine_ops`).
-- `memories`: Long-term user memories categorized as `semantic`, `episodic`, or `preference` with `vector(1536)` embeddings.
-- `agent_runs` & `tool_calls`: Audit logs recording every query run, tool latencies, and token usage.
-- `live_data_cache`: External API cache with expiration timestamps.
+5. **Multi-Mode Freshness-Aware Retrieval**:
+   - **Semantic Vector RAG**: Cosine similarity over document & advisory text.
+   - **Structured SQL**: Parameterized SQL queries for district rainfall/numerical rankings (`structured_data->>'rainfallMm'`).
+   - **Hybrid Score**: `(Vector Sim * 0.5) + (Freshness * 0.3) + (Source Reliability * 0.2)`.
 
----
-
-## 5. RAG & Long-Term Memory Pipeline
-
-### Document RAG Pipeline
-```
-Document Upload (PDF/TXT) 
-↓ 
-Text Extraction (pdf-parse) 
-↓ 
-Recursive Chunking (500 chars, 50 overlap) 
-↓ 
-Vector Embedding Generation (text-embedding-3-small / 1536-dim) 
-↓ 
-PostgreSQL pgvector HNSW Storage 
-↓ 
-Cosine Distance Retrieval (1 - (embedding <=> query))
-```
-
-### Memory System
-- **Categories**: Short-Term (conversation state), Semantic (long-term facts), Episodic (key decisions), Preference (user travel/communication choices).
-- **Scoring**: Combines vector cosine similarity with importance multipliers (`high` = 1.2x, `medium` = 1.0x, `low` = 0.8x).
+6. **User Memory Isolation**:
+   User preferences are stored separately in `memories` table and retrieved ONLY when query intent demands personal context ("my travel preferences"). Prevents memory contamination.
 
 ---
 
-## 6. API Documentation
+## 4. API Documentation
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
 | `GET` | `/api/health` | System health check & `pgvector` connectivity test |
 | `POST` | `/api/chat` | Main chat endpoint running LangGraph workflow |
-| `GET` | `/api/conversations` | List user conversation history |
+| `GET` | `/api/ingestion/status` | Current data mode (`live`/`demo`), worker interval & record stats |
+| `GET` | `/api/ingestion/datasets` | List registered government datasets and last sync stats |
+| `GET` | `/api/ingestion/records` | List canonical knowledge records with freshness & versions |
+| `POST` | `/api/ingestion/sync` | Trigger manual live data ingestion pipeline sync |
 | `POST` | `/api/documents/upload` | Upload and index PDF or TXT document |
-| `POST` | `/api/documents/search` | Direct vector search over RAG Knowledge Base |
+| `POST` | `/api/documents/search` | Direct vector search over static document RAG |
 | `GET` | `/api/memories` | List long-term user memories |
-| `POST` | `/api/memories` | Save a new long-term preference |
-| `POST` | `/api/memories/search` | Vector search over long-term memory store |
-| `GET` | `/api/agent-runs` | List historical agent execution audit logs |
+| `POST` | `/api/memories` | Save a new long-term user preference |
 
 ---
 
-## 7. Setup & Running Instructions
+## 5. Setup & Running Instructions
 
 ### Prerequisites
 - Node.js (v18+)
 - Docker & Docker Desktop
 
-### 1. Environment Variables (`.env`)
-Copy `.env.example` to `.env` in the root directory:
+### 1. Environment Configuration (`.env`)
+Copy `.env.example` to `.env` in the project root:
 ```bash
 PORT=5000
 NODE_ENV=development
@@ -143,12 +131,21 @@ DB_USER=veridex_user
 DB_PASSWORD=veridex_password
 DB_NAME=veridex_db
 
-OPENAI_API_KEY=your_openai_api_key_here
-WEATHER_API_KEY=mock-key
-```
-*(Note: A Mock LLM & Mock Vector Provider fallback is active automatically if no OpenAI API key is supplied!)*
+# Choose LLM Provider: Groq (Free) or OpenAI
+GROQ_API_KEY=gsk_your_free_groq_api_key_here
+OPENAI_API_KEY=
 
-### 2. Start PostgreSQL via Docker
+# data.gov.in API Key
+DATAGOV_API_KEY=
+
+# Data Mode (live = strict no-fake-data mode; demo = allows mock test data)
+DATA_MODE=live
+
+# Background Ingestion Interval (Minutes)
+INGESTION_INTERVAL_MINUTES=10
+```
+
+### 2. Start PostgreSQL with pgvector via Docker
 ```bash
 docker compose up -d postgres
 ```
@@ -161,7 +158,7 @@ npm run dev
 ```
 *(Runs on `http://localhost:5000`)*
 
-### 4. Start Frontend Client
+### 4. Start Frontend Dashboard
 ```bash
 cd client
 npm install
@@ -174,5 +171,18 @@ npm run dev
 cd server
 npm run eval
 ```
+*(Executes all 8 mandatory benchmark user query test cases)*
 
+---
 
+## 6. Mandatory 8 User Test Query Benchmark
+
+Run `npm run eval` to verify all 8 test cases:
+1. `What is the current rainfall in Punjab?` → Dataset discovery → Live Knowledge Layer search
+2. `Which Punjab district has received the highest rainfall recently?` → Structured SQL query
+3. `What does the government recommend during heavy rainfall?` → Semantic RAG advisory
+4. `What changed in Punjab rainfall since yesterday?` → Comparison mode & version snapshot diff
+5. `What are my travel preferences?` → Long-Term User Memory retrieval
+6. `Considering current rainfall and my travel preferences, should I travel?` → Live Knowledge + Memory reasoning
+7. `What happened in Punjab rainfall last year?` → Historical scope retrieval
+8. `What happens if the government API is unavailable?` → Honest no-evidence state (No fabrication)

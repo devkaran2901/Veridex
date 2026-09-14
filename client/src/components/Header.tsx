@@ -1,5 +1,5 @@
-import React from 'react';
-import { Wifi, Cpu, Database, User } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Wifi, Database, User, ShieldCheck, AlertTriangle } from 'lucide-react';
 
 interface HeaderProps {
   dbConnected: boolean;
@@ -7,6 +7,19 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ dbConnected, socketConnected }) => {
+  const [dataMode, setDataMode] = useState<'live' | 'demo'>('live');
+
+  useEffect(() => {
+    fetch('/api/ingestion/status')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.dataMode) {
+          setDataMode(data.dataMode);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <header className="h-16 glass-panel border-b border-gray-800 px-6 flex items-center justify-between flex-shrink-0">
       <div className="flex items-center gap-3">
@@ -16,6 +29,17 @@ export const Header: React.FC<HeaderProps> = ({ dbConnected, socketConnected }) 
         <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
           LangGraph.js v0.2
         </span>
+
+        {/* Data Mode Badge (FIX #28) */}
+        {dataMode === 'live' ? (
+          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 shadow-sm">
+            <ShieldCheck className="w-3.5 h-3.5" /> DATA MODE: LIVE (AUTHENTIC)
+          </span>
+        ) : (
+          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1.5 shadow-sm">
+            <AlertTriangle className="w-3.5 h-3.5" /> DATA MODE: DEMO (TEST DATA)
+          </span>
+        )}
       </div>
 
       {/* System Status Indicators */}

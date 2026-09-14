@@ -75,6 +75,7 @@ router.post('/', async (req, res) => {
       messages: [],
       selectedTools: [],
       toolCallsLog: [],
+      discoveredDatasets: [],
       retrievedDocuments: [],
       retrievedMemories: [],
       liveData: {},

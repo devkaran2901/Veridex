@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS knowledge_records (
     structured_data JSONB DEFAULT '{}'::jsonb,
     metadata JSONB DEFAULT '{}'::jsonb,
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    observed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    retrieved_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     valid_from TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     valid_until TIMESTAMP WITH TIME ZONE,
     version INTEGER DEFAULT 1,
@@ -74,6 +76,7 @@ CREATE INDEX IF NOT EXISTS knowledge_records_content_hash_idx ON knowledge_recor
 CREATE INDEX IF NOT EXISTS knowledge_records_dataset_id_idx ON knowledge_records(dataset_id);
 CREATE INDEX IF NOT EXISTS knowledge_records_source_idx ON knowledge_records(source);
 CREATE INDEX IF NOT EXISTS knowledge_records_valid_from_idx ON knowledge_records(valid_from);
+CREATE INDEX IF NOT EXISTS knowledge_records_observed_at_idx ON knowledge_records(observed_at);
 
 -- Documents table (Static Knowledge Base Files)
 CREATE TABLE IF NOT EXISTS documents (
