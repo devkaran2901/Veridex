@@ -283,12 +283,64 @@ export async function searchLiveKnowledgeBase(
 }
 
 /**
- * Explicit DEMO Mode Fallback knowledge records (Used ONLY when DATA_MODE=demo)
+ * Check whether a user query is relevant to Live Government/Open Data domain
+ */
+export function isDomainRelevantQuery(queryText: string): boolean {
+  const q = queryText.toLowerCase().trim();
+
+  // Out-of-domain patterns (trivia, acronym definitions like GTA, movies, general knowledge)
+  const outOfDomainPatterns = [
+    /\bwhat does \w+ mean\b/i,
+    /\bmeaning of \w+\b/i,
+    /\bstand for\b/i,
+    /\bgrand theft auto\b/i,
+    /\bgta\b/i,
+    /\bwho is\b/i,
+    /\bcapital of\b/i,
+    /\bmovie\b/i,
+    /\bgame\b/i,
+    /\bplaystation\b/i,
+    /\bxbox\b/i,
+    /\bsong\b/i,
+    /\bcelebrity\b/i,
+    /\bactor\b/i,
+  ];
+
+  const govAcronyms = ['imd', 'ndma', 'aqi', 'pm2.5', 'pm10', 'isro', 'cpcb', 'niti', 'rag', 'veridex', 'api'];
+  const hasGovAcronym = govAcronyms.some((ac) => q.includes(ac));
+
+  if (!hasGovAcronym) {
+    for (const pattern of outOfDomainPatterns) {
+      if (pattern.test(q)) {
+        return false;
+      }
+    }
+  }
+
+  const domainKeywords = [
+    'weather', 'rain', 'rainfall', 'monsoon', 'temp', 'temperature', 'climate', 'flood',
+    'advisory', 'forecast', 'district', 'punjab', 'delhi', 'mumbai', 'india', 'imd', 'ndma',
+    'government', 'data', 'catalog', 'traffic', 'road', 'air quality', 'aqi', 'pollution',
+    'water', 'reservoir', 'agriculture', 'crop', 'custom', 'api', 'stats', 'statistic',
+    'document', 'pdf', 'guidance', 'report', 'policy', 'preference', 'travel', 'budget',
+    'census', 'transport', 'hazard', 'disaster', 'precip', 'precipitation', 'humidity',
+    'wind', 'warning', 'directive', 'ingested', 'dataset', 'source', 'veridex', 'my preference'
+  ];
+
+  return domainKeywords.some((kw) => q.includes(kw));
+}
+
+/**
+ * Explicit DEMO Mode Fallback knowledge records (Used ONLY when DATA_MODE=demo and query is in-domain)
  */
 function getFallbackKnowledgeRecords(
   queryText: string,
   timeScope: TimeScope
 ): HybridKnowledgeRecordResult[] {
+  if (!isDomainRelevantQuery(queryText)) {
+    return [];
+  }
+
   const now = new Date();
 
   return [

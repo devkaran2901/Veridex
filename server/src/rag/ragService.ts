@@ -95,6 +95,8 @@ export async function processAndIndexDocument(
   }
 }
 
+import { isDomainRelevantQuery } from './hybridRetrieval';
+
 /**
  * Semantic Vector Search over indexed document chunks using pgvector cosine distance
  */
@@ -136,7 +138,7 @@ export async function searchKnowledgeBase(
     }));
   } catch (err: any) {
     console.warn('⚠️ Knowledge base DB query failed:', err.message);
-    if (config.dataMode === 'demo') {
+    if (config.dataMode === 'demo' && isDomainRelevantQuery(queryText)) {
       return [
         {
           chunkId: 'mock-chunk-1',

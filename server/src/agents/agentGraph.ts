@@ -360,32 +360,82 @@ async function evaluateEvidenceNode(state: AgentState): Promise<Partial<AgentSta
 }
 
 /**
+ * Helper to check if an answer must be refused due to out-of-domain trivia/acronym queries or missing evidence grounding
+ */
+function shouldRefuseAnswer(queryText: string, evidence: string[], responseContent: string): boolean {
+  const q = queryText.toLowerCase();
+  const resp = responseContent.toLowerCase();
+  const evidenceText = evidence.join(' ').toLowerCase();
+
+  // Out of domain trivia / acronym definition patterns (e.g. "what does GTA mean?")
+  const triviaPatterns = [
+    /what does \w+ mean/i,
+    /meaning of \w+/i,
+    /stand for/i,
+    /grand theft auto/i,
+    /\bgta\b/i,
+    /who is/i,
+    /capital of/i,
+  ];
+
+  const isTriviaQuery = triviaPatterns.some((p) => p.test(q));
+  if (isTriviaQuery) {
+    const match = q.match(/what does (\w+) mean/) || q.match(/meaning of (\w+)/) || q.match(/(\w+) stand for/);
+    const targetWord = match ? match[1].toLowerCase() : 'gta';
+
+    if (!evidenceText.includes(targetWord)) {
+      return true;
+    }
+  }
+
+  // Check if LLM outputted well-known out-of-domain general knowledge definitions not in evidence
+  if (
+    (resp.includes('grand theft auto') || resp.includes('greater toronto area')) &&
+    !evidenceText.includes('grand theft auto')
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * NODE 5: Grounded LLM Synthesis Node (FIX #22, FIX #23, FIX #25, FIX #28)
  */
 async function synthesizeAnswerNode(state: AgentState): Promise<Partial<AgentState>> {
   const startTime = Date.now();
+  const STANDARD_REFUSAL = 'The requested live government data or document is currently unavailable in the indexed knowledge layer.';
+
   emitTraceStep(state.conversationId, 'Synthesizing Grounded Answer & Source Citations', undefined, 'running');
+
+  // Hard Refusal Guard: If zero evidence retrieved, return standard refusal immediately without calling LLM
+  if (!state.evidence || state.evidence.length === 0) {
+    const latency = Date.now() - startTime;
+    emitTraceStep(state.conversationId, '✓ Zero Evidence Refusal Triggered', undefined, 'completed', undefined, { answerLength: STANDARD_REFUSAL.length }, latency);
+    return {
+      finalAnswer: STANDARD_REFUSAL,
+    };
+  }
 
   const dataModeTag = config.dataMode === 'demo' ? '[DATA MODE: DEMO / TEST]' : '[DATA MODE: LIVE DATA]';
 
-  const systemPrompt = `You are Veridex, an Agentic Intelligence System operating over a Continuously Updated Live Knowledge Layer (IMD weather feeds, data.gov.in datasets, NDMA guidelines) and User Long-Term Memory.
+  const systemPrompt = `You are Veridex, an Agentic Intelligence System operating strictly over a Continuously Updated Live Knowledge Layer (IMD weather feeds, data.gov.in datasets, NDMA guidelines) and User Long-Term Memory.
 Current Operating Mode: ${dataModeTag}
 
-CRITICAL GROUNDING & SYNTHESIS RULES:
+CRITICAL GROUNDING & STRICT REFUSAL RULES:
 1. Use ONLY the retrieved evidence provided below to formulate your response.
-2. Clearly distinguish between:
+2. You MUST NOT answer general world knowledge, trivia, acronym definitions (such as "what does GTA mean"), pop culture, gaming, general geography, or out-of-domain questions using pre-trained model knowledge.
+3. If the user's query is NOT directly answered by or relevant to the RETRIEVED EVIDENCE below, you MUST respond ONLY with:
+   "The requested live government data or document is currently unavailable in the indexed knowledge layer."
+4. Clearly distinguish between:
    - LIVE KNOWLEDGE LAYER: Ingested government API feeds and datasets (include observed timestamps & freshness).
    - STATIC KNOWLEDGE: Uploaded PDF/TXT documents.
    - USER MEMORY: Saved user preferences or habits.
-3. Do NOT present user memory as external government facts. Separate user preferences from external facts.
-4. If evidence is empty or missing:
-   - State clearly: "The requested live government data is currently unavailable in the indexed knowledge layer."
-   - Do NOT invent weather metrics, rainfall numbers, or fake advisories.
-5. If evidence contains [DEMO DATA], explicitly state in your answer that synthetic demonstration records were used.
-6. Provide logical reasoning connecting the facts, user memory (if applicable), and final recommendation.
+5. Do NOT present user memory as external government facts. Separate user preferences from external facts.
+6. If evidence contains [DEMO DATA], explicitly state in your answer that synthetic demonstration records were used.
 
 RETRIEVED EVIDENCE:
-${state.evidence.length > 0 ? state.evidence.join('\n\n') : 'NO EVIDENCE RETRIEVED'}`;
+${state.evidence.join('\n\n')}`;
 
   const formattedMessages = [
     { role: 'system' as const, content: systemPrompt },
@@ -395,10 +445,17 @@ ${state.evidence.length > 0 ? state.evidence.join('\n\n') : 'NO EVIDENCE RETRIEV
   const llmRes = await invokeLLM(formattedMessages);
   const latencyMs = Date.now() - startTime;
 
-  emitTraceStep(state.conversationId, '✓ Grounded Response Synthesized', undefined, 'completed', undefined, { answerLength: llmRes.content.length }, latencyMs);
+  // Post-Synthesis Groundedness Verification Check
+  let finalAnswer = llmRes.content;
+  if (shouldRefuseAnswer(state.originalQuery, state.evidence, finalAnswer)) {
+    console.warn(`⚠️ Groundedness check failed for query "${state.originalQuery}". Overwriting with standard refusal.`);
+    finalAnswer = STANDARD_REFUSAL;
+  }
+
+  emitTraceStep(state.conversationId, '✓ Grounded Response Synthesized', undefined, 'completed', undefined, { answerLength: finalAnswer.length }, latencyMs);
 
   return {
-    finalAnswer: llmRes.content,
+    finalAnswer,
   };
 }
 

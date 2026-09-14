@@ -113,18 +113,19 @@ function synthesizeEvidenceFallback(
     evidenceText = sysMsg.split('RETRIEVED EVIDENCE:')[1]?.trim() || '';
   }
 
-  if (evidenceText && evidenceText.length > 0) {
+  if (evidenceText && evidenceText.length > 0 && !evidenceText.includes('NO EVIDENCE RETRIEVED')) {
     const evidenceLines = evidenceText
       .split('\n')
       .map((l) => l.trim())
-      .filter((l) => l.length > 0);
+      .filter((l) => l.length > 0 && !l.startsWith('NO EVIDENCE'));
 
-    const summarizedEvidence = evidenceLines.map((l) => `- ${l}`).join('\n');
-
-    return `Based on retrieved government knowledge records for "${userMsg}":\n\n${summarizedEvidence}\n\n*Source: Ingested Open Government Knowledge Layer (PostgreSQL pgvector)*`;
+    if (evidenceLines.length > 0) {
+      const summarizedEvidence = evidenceLines.map((l) => `- ${l}`).join('\n');
+      return `Based on retrieved government knowledge records for "${userMsg}":\n\n${summarizedEvidence}\n\n*Source: Ingested Open Government Knowledge Layer (PostgreSQL pgvector)*`;
+    }
   }
 
-  return `Based on searches across the open government data catalog for "${userMsg}", no specific matching historical dataset records are currently loaded in the local knowledge base. You can sync additional open datasets by configuring your \`DATAGOV_API_KEY\` and triggering dataset ingestion in the Knowledge Base panel.`;
+  return 'The requested live government data or document is currently unavailable in the indexed knowledge layer.';
 }
 
 /**
