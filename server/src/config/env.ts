@@ -1,7 +1,6 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load .env from root directory or server directory
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 dotenv.config();
 
@@ -17,5 +16,7 @@ export const config = {
     name: process.env.DB_NAME || 'veridex_db',
   },
   openaiApiKey: process.env.OPENAI_API_KEY || 'mock-key',
+  groqApiKey: process.env.GROQ_API_KEY || '',
+  openRouterApiKey: process.env.OPENROUTER_API_KEY || '',
   weatherApiKey: process.env.WEATHER_API_KEY || 'mock-key',
 };
