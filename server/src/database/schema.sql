@@ -45,12 +45,39 @@ CREATE TABLE IF NOT EXISTS knowledge_datasets (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Connected User Custom Data Sources Table
+CREATE TABLE IF NOT EXISTS data_sources (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    url TEXT NOT NULL,
+    auth_type VARCHAR(50) NOT NULL DEFAULT 'none' CHECK (auth_type IN ('none', 'api_key', 'bearer')),
+    auth_config JSONB DEFAULT '{}'::jsonb,
+    encrypted_credentials TEXT,
+    refresh_interval INTEGER NOT NULL DEFAULT 10,
+    status VARCHAR(50) NOT NULL DEFAULT 'HEALTHY' CHECK (status IN ('HEALTHY', 'DEGRADED', 'ERROR', 'DISABLED')),
+    last_fetched_at TIMESTAMP WITH TIME ZONE,
+    last_success_at TIMESTAMP WITH TIME ZONE,
+    last_error TEXT,
+    schema JSONB DEFAULT '[]'::jsonb,
+    record_count INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS data_sources_user_id_idx ON data_sources(user_id);
+CREATE INDEX IF NOT EXISTS data_sources_status_idx ON data_sources(status);
+CREATE INDEX IF NOT EXISTS data_sources_is_active_idx ON data_sources(is_active);
+
 -- Canonical Unified Live & Static Knowledge Records Table
 CREATE TABLE IF NOT EXISTS knowledge_records (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     source VARCHAR(100) NOT NULL,
     source_type VARCHAR(50) NOT NULL CHECK (source_type IN ('api_feed', 'dataset', 'document', 'web')),
     dataset_id VARCHAR(100) REFERENCES knowledge_datasets(id) ON DELETE SET NULL,
+    source_id UUID REFERENCES data_sources(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
     content TEXT NOT NULL,
     structured_data JSONB DEFAULT '{}'::jsonb,
@@ -67,6 +94,14 @@ CREATE TABLE IF NOT EXISTS knowledge_records (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE knowledge_records ADD COLUMN IF NOT EXISTS source_id UUID REFERENCES data_sources(id) ON DELETE CASCADE;
+ALTER TABLE knowledge_records ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE;
+ALTER TABLE knowledge_records ADD COLUMN IF NOT EXISTS observed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE knowledge_records ADD COLUMN IF NOT EXISTS retrieved_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE knowledge_records ADD COLUMN IF NOT EXISTS valid_from TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE knowledge_records ADD COLUMN IF NOT EXISTS valid_until TIMESTAMP WITH TIME ZONE;
+ALTER TABLE knowledge_records ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 1;
+
 -- Vector HNSW Index on knowledge_records
 CREATE INDEX IF NOT EXISTS knowledge_records_embedding_idx 
 ON knowledge_records USING hnsw (embedding vector_cosine_ops);
@@ -77,6 +112,8 @@ CREATE INDEX IF NOT EXISTS knowledge_records_dataset_id_idx ON knowledge_records
 CREATE INDEX IF NOT EXISTS knowledge_records_source_idx ON knowledge_records(source);
 CREATE INDEX IF NOT EXISTS knowledge_records_valid_from_idx ON knowledge_records(valid_from);
 CREATE INDEX IF NOT EXISTS knowledge_records_observed_at_idx ON knowledge_records(observed_at);
+CREATE INDEX IF NOT EXISTS knowledge_records_user_id_idx ON knowledge_records(user_id);
+CREATE INDEX IF NOT EXISTS knowledge_records_source_id_idx ON knowledge_records(source_id);
 
 -- Documents table (Static Knowledge Base Files)
 CREATE TABLE IF NOT EXISTS documents (

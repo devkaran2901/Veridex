@@ -10,6 +10,7 @@ export interface RetrievalOptions {
   mode?: 'semantic' | 'structured' | 'hybrid' | 'comparison';
   districtFilter?: string;
   sourceFilter?: string;
+  userId?: string;
 }
 
 export interface HybridKnowledgeRecordResult {
@@ -119,7 +120,7 @@ export function computeReliabilityScore(source: string, metadata: Record<string,
   const isMock = metadata.isMock || s.includes('mock') || s.includes('demo');
 
   if (isMock) return 0.4;
-  if (s.includes('imd') || s.includes('ndma') || s.includes('data.gov.in') || s.includes('government')) {
+  if (s.includes('imd') || s.includes('ndma') || s.includes('data.gov.in') || s.includes('government') || s.includes('custom') || s.includes('connected')) {
     return 1.0;
   }
   return 0.8;

@@ -12,6 +12,7 @@ import documentRoutes from './routes/documents';
 import memoryRoutes from './routes/memories';
 import agentRunRoutes from './routes/agentRuns';
 import ingestionRoutes from './routes/ingestion';
+import dataSourceRoutes from './routes/dataSources';
 
 const app = express();
 const server = http.createServer(app);
@@ -34,6 +35,7 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/memories', memoryRoutes);
 app.use('/api/agent-runs', agentRunRoutes);
 app.use('/api/ingestion', ingestionRoutes);
+app.use('/api/data-sources', dataSourceRoutes);
 
 // Socket.IO event handling
 io.on('connection', (socket) => {

@@ -108,13 +108,15 @@ export async function ingestLiveRecord(rawRec: KnowledgeRecordInput): Promise<{ 
     // 6. Insert into PostgreSQL knowledge_records
     const insertRes = await query(
       `INSERT INTO knowledge_records 
-       (source, source_type, dataset_id, title, content, structured_data, metadata, observed_at, retrieved_at, valid_from, valid_until, version, content_hash, embedding)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::vector)
+       (source, source_type, dataset_id, source_id, user_id, title, content, structured_data, metadata, observed_at, retrieved_at, valid_from, valid_until, version, content_hash, embedding)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::vector)
        RETURNING id`,
       [
         rec.source,
         rec.sourceType,
         rec.datasetId || 'live_feed',
+        rec.sourceId || null,
+        rec.userId || null,
         rec.title,
         rec.content,
         JSON.stringify(rec.structuredData || {}),
@@ -203,7 +205,103 @@ export async function runIngestionPipeline(providerIdFilter?: string): Promise<I
   }
 
   console.log(`✅ Ingestion Complete: ${report.insertedRecords} inserted, ${report.updatedRecords} updated, ${report.duplicateRecords} duplicates skipped.`);
+  
+  // Also run sync for any active user connected custom APIs
+  try {
+    await syncAllCustomDataSources();
+  } catch (err: any) {
+    console.warn('⚠️ Custom data sources sync error:', err.message);
+  }
+
   return report;
+}
+
+/**
+ * Ingest / Sync a specific custom user data source by ID
+ */
+export async function syncCustomDataSource(sourceId: string): Promise<{
+  fetched: number;
+  new: number;
+  updated: number;
+  unchanged: number;
+  errors: number;
+  errorMessage?: string;
+}> {
+  const result = await query(`SELECT * FROM data_sources WHERE id = $1`, [sourceId]);
+  if (result.rows.length === 0) {
+    throw new Error(`Data source "${sourceId}" not found`);
+  }
+
+  const ds = result.rows[0];
+
+  const stats = { fetched: 0, new: 0, updated: 0, unchanged: 0, errors: 0 };
+  const { CustomApiProvider } = require('./providers/CustomApiProvider');
+  const provider = new CustomApiProvider(ds);
+
+  try {
+    const rawRecords = await provider.fetchLatestData();
+    stats.fetched = rawRecords.length;
+
+    for (const rawRec of rawRecords) {
+      const recWithSource = {
+        ...rawRec,
+        sourceId: ds.id,
+        userId: ds.user_id,
+      };
+      const ingRes = await ingestLiveRecord(recWithSource);
+      if (ingRes.inserted) {
+        if (ingRes.isUpdate) stats.updated++;
+        else stats.new++;
+      } else {
+        stats.unchanged++;
+      }
+    }
+
+    // Update data source status & stats
+    await query(
+      `UPDATE data_sources 
+       SET status = 'HEALTHY', last_fetched_at = CURRENT_TIMESTAMP, last_success_at = CURRENT_TIMESTAMP, record_count = $1, last_error = NULL, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2`,
+      [stats.fetched, ds.id]
+    );
+
+    return stats;
+  } catch (err: any) {
+    stats.errors = 1;
+    console.error(`❌ Sync failed for custom data source "${ds.name}" (${ds.id}):`, err.message);
+    await query(
+      `UPDATE data_sources 
+       SET status = 'ERROR', last_fetched_at = CURRENT_TIMESTAMP, last_error = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2`,
+      [err.message, ds.id]
+    );
+    return { ...stats, errorMessage: err.message };
+  }
+}
+
+/**
+ * Sync all active custom user data sources whose refresh interval has elapsed
+ */
+export async function syncAllCustomDataSources(): Promise<void> {
+  try {
+    const activeSources = await query(
+      `SELECT * FROM data_sources 
+       WHERE is_active = TRUE AND status != 'DISABLED'`
+    );
+
+    for (const ds of activeSources.rows) {
+      const lastFetched = ds.last_fetched_at ? new Date(ds.last_fetched_at).getTime() : 0;
+      const intervalMs = (ds.refresh_interval || 10) * 60 * 1000;
+      const elapsed = Date.now() - lastFetched;
+
+      if (elapsed >= intervalMs || !ds.last_fetched_at) {
+        console.log(`🔄 Scheduled sync for Custom Data Source: "${ds.name}" (${ds.url})`);
+        await syncCustomDataSource(ds.id);
+      }
+    }
+  } catch (err: any) {
+    console.warn('⚠️ syncAllCustomDataSources failed:', err.message);
+  }
 }
 
 /**

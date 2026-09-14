@@ -486,6 +486,106 @@ export class MockDataGovProvider implements GovernmentDataProvider {
   }
 }
 
+/**
+ * Explicit DEMO Mode Mock Custom API Provider
+ */
+export class MockCustomWeatherProvider implements GovernmentDataProvider {
+  id = 'custom_demo_weather_api';
+  name = 'Connected Punjab District Weather & Reservoir Advisory API';
+  source = 'Punjab Water & Weather Advisory (Custom REST API)';
+  publisher = 'Department of Irrigation & Climate Advisory (User Connected API)';
+  description = 'Connected custom API feed providing district level weather warnings, dam water levels, and agricultural alerts.';
+  category = 'weather' as const;
+  isMock = true;
+
+  async searchDatasets(queryText: string): Promise<DatasetMetadata[]> {
+    if (config.dataMode !== 'demo') return [];
+    return [await this.getDatasetMetadata(this.id)];
+  }
+
+  async getDatasetMetadata(datasetId: string): Promise<DatasetMetadata> {
+    return {
+      id: this.id,
+      name: this.name,
+      source: this.source,
+      publisher: this.publisher,
+      description: this.description,
+      category: this.category,
+      apiAvailable: true,
+      schema: ['district', 'reservoirLevelMeters', 'rainfallMm', 'floodAdvisory', 'status'],
+      geography: 'Punjab',
+      geographicCoverage: 'State Level',
+      temporalCoverage: 'Real-time',
+      updateFrequency: 'Every 10 minutes',
+      lastUpdated: new Date().toISOString(),
+      sourceUrl: 'https://api.punjab-irrigation.gov.in/v1/weather-advisory',
+      recordCount: 2,
+      isMock: true,
+    };
+  }
+
+  async fetchDataset(datasetId: string, options?: Record<string, any>): Promise<KnowledgeRecordInput[]> {
+    return this.fetchLatestData(datasetId, options);
+  }
+
+  async fetchLatestData(_datasetId?: string, _options?: Record<string, any>): Promise<KnowledgeRecordInput[]> {
+    if (config.dataMode !== 'demo') return [];
+    const now = new Date();
+    return [
+      {
+        source: this.source,
+        sourceType: 'api_feed',
+        datasetId: this.id,
+        title: '[MOCK / DEMO] Punjab Connected Custom API - Amritsar Dam & Weather Advisory',
+        content: '[MOCK / DEMO CUSTOM API DATA] Amritsar District Reservoir Level: 245.8 meters (Normal Capacity: 250m). Rainfall: 92.1 mm. Advisory Status: High runoff watch active. Government warning: Evacuate low-lying canal banks if rainfall exceeds 100mm.',
+        structuredData: {
+          district: 'Amritsar',
+          reservoirLevelMeters: 245.8,
+          rainfallMm: 92.1,
+          floodAdvisory: 'High runoff watch active. Maintain canal gates.',
+          status: 'WARNING',
+          isMock: true,
+        },
+        metadata: {
+          sourceName: this.name,
+          sourceUrl: 'https://api.punjab-irrigation.gov.in/v1/weather-advisory',
+          isMock: true,
+        },
+        timestamp: now,
+        observedAt: now,
+        retrievedAt: now,
+        validFrom: now,
+        isMock: true,
+      },
+      {
+        source: this.source,
+        sourceType: 'api_feed',
+        datasetId: this.id,
+        title: '[MOCK / DEMO] Punjab Connected Custom API - Jalandhar Drainage & Weather Bulletin',
+        content: '[MOCK / DEMO CUSTOM API DATA] Jalandhar District Reservoir Level: 210.2 meters. Rainfall: 84.5 mm. Advisory Status: Operational. Silt removal in progress.',
+        structuredData: {
+          district: 'Jalandhar',
+          reservoirLevelMeters: 210.2,
+          rainfallMm: 84.5,
+          floodAdvisory: 'Operational. Silt removal in progress.',
+          status: 'NORMAL',
+          isMock: true,
+        },
+        metadata: {
+          sourceName: this.name,
+          sourceUrl: 'https://api.punjab-irrigation.gov.in/v1/weather-advisory',
+          isMock: true,
+        },
+        timestamp: now,
+        observedAt: now,
+        retrievedAt: now,
+        validFrom: now,
+        isMock: true,
+      },
+    ];
+  }
+}
+
 // Global Provider Registry Catalog
 export const REGISTERED_PROVIDERS: GovernmentDataProvider[] = [
   new IMDProvider(),
@@ -495,13 +595,14 @@ export const REGISTERED_PROVIDERS: GovernmentDataProvider[] = [
 
 if (config.dataMode === 'demo') {
   REGISTERED_PROVIDERS.push(new MockDataGovProvider());
+  REGISTERED_PROVIDERS.push(new MockCustomWeatherProvider());
 }
 
 /**
- * Comprehensive Dataset Discovery Function (FIX #3 & FIX #4)
- * Searches open dataset catalogs, ranks candidates, and returns schema/metadata.
+ * Comprehensive Dataset Discovery Function
+ * Searches open dataset catalogs + user connected custom APIs, ranks candidates, and returns schema/metadata.
  */
-export async function discoverDatasets(queryText: string): Promise<DatasetMetadata[]> {
+export async function discoverDatasets(queryText: string, userId?: string): Promise<DatasetMetadata[]> {
   const matched: DatasetMetadata[] = [];
   const seenIds = new Set<string>();
 
@@ -519,6 +620,57 @@ export async function discoverDatasets(queryText: string): Promise<DatasetMetada
     } catch (err: any) {
       console.warn(`⚠️ Dataset discovery error in provider ${provider.id}:`, err.message);
     }
+  }
+
+  // Discover user connected custom APIs from PostgreSQL data_sources table
+  try {
+    const { query } = require('../../database/db');
+    const customSources = await query(
+      `SELECT * FROM data_sources 
+       WHERE is_active = TRUE AND status != 'DISABLED'
+       AND ($1::uuid IS NULL OR user_id = $1::uuid OR user_id IS NULL)`,
+      [userId || null]
+    );
+
+    const q = queryText.toLowerCase();
+    for (const ds of customSources.rows) {
+      const dsId = `custom_${ds.id}`;
+      if (seenIds.has(dsId)) continue;
+
+      const matches =
+        ds.name.toLowerCase().includes(q) ||
+        ds.url.toLowerCase().includes(q) ||
+        q.includes('custom') ||
+        q.includes('api') ||
+        q.includes('source') ||
+        q.includes('weather') ||
+        q.includes('rain') ||
+        q.includes('data');
+
+      if (matches || queryText.length < 5) {
+        seenIds.add(dsId);
+        matched.push({
+          id: dsId,
+          name: ds.name,
+          source: `${ds.name} (Custom API)`,
+          publisher: `User API (${new URL(ds.url).hostname})`,
+          description: `User connected REST API: ${ds.url}`,
+          category: 'general',
+          apiAvailable: true,
+          schema: (ds.schema || []).map((s: any) => s.name || s),
+          geography: 'Custom Scope',
+          geographicCoverage: 'User API Coverage',
+          temporalCoverage: 'Real-time',
+          updateFrequency: `Every ${ds.refresh_interval}m`,
+          lastUpdated: ds.last_fetched_at ? new Date(ds.last_fetched_at).toISOString() : new Date().toISOString(),
+          sourceUrl: ds.url,
+          recordCount: ds.record_count || 0,
+          isMock: false,
+        });
+      }
+    }
+  } catch (err: any) {
+    // Database may not be initialized in test/standalone runs
   }
 
   return matched;

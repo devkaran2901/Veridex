@@ -24,5 +24,6 @@ export const config = {
   dataMode: ((process.env.DATA_MODE || '').toLowerCase() === 'demo' || process.env.DEMO_MODE === 'true') ? 'demo' as const : 'live' as const,
   demoMode: (process.env.DATA_MODE || '').toLowerCase() === 'demo' || process.env.DEMO_MODE === 'true',
   ingestionIntervalMinutes: parseInt(process.env.INGESTION_INTERVAL_MINUTES || '10', 10),
+  credentialEncryptionKey: process.env.CREDENTIAL_ENCRYPTION_KEY || 'veridex-default-secret-key-32chars!!',
 };
 

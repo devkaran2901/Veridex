@@ -71,8 +71,14 @@ const MANDATORY_TEST_SUITE: EvaluationCase[] = [
   },
 ];
 
+import { initDatabase } from '../database/initDb';
+
 export async function runEvaluationSuite() {
   console.log(`\n🧪 Starting Veridex Comprehensive Agentic RAG Evaluation Benchmark [Data Mode: ${config.dataMode.toUpperCase()}]...\n`);
+
+  try {
+    await initDatabase();
+  } catch (e) {}
 
   // 1. Ingestion Pipeline & SHA-256 Deduplication Test
   console.log('--- TEST 1: Ingestion Pipeline & SHA-256 Change Detection ---');

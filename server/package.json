@@ -8,7 +8,8 @@
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "db:init": "tsx src/database/initDb.ts",
-    "eval": "tsx src/evaluation/evaluate.ts"
+    "eval": "tsx src/evaluation/evaluate.ts",
+    "eval:sources": "tsx src/evaluation/evaluateDataSources.ts"
   },
   "dependencies": {
     "@langchain/core": "^0.3.36",

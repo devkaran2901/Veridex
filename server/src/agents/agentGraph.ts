@@ -155,9 +155,9 @@ async function discoverDatasetsNode(state: AgentState): Promise<Partial<AgentSta
     return { discoveredDatasets: [] };
   }
 
-  emitTraceStep(state.conversationId, 'Discovering Open Government Datasets', 'discoverDatasets', 'running', { query: state.originalQuery });
+  emitTraceStep(state.conversationId, 'Discovering Open Government & Connected Custom Datasets', 'discoverDatasets', 'running', { query: state.originalQuery });
 
-  const datasets = await discoverDatasets(state.originalQuery);
+  const datasets = await discoverDatasets(state.originalQuery, state.userId);
   const latencyMs = Date.now() - startTime;
 
   emitTraceStep(
@@ -197,6 +197,7 @@ async function executeRetrievalNode(state: AgentState): Promise<Partial<AgentSta
         timeScope: plan.timeScope,
         mode: plan.retrievalMode,
         limit: 4,
+        userId: state.userId,
       });
       const latency = Date.now() - tStart;
 

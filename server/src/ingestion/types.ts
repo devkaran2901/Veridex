@@ -2,6 +2,8 @@ export interface KnowledgeRecordInput {
   source: string;
   sourceType: 'api_feed' | 'dataset' | 'document' | 'web';
   datasetId: string;
+  sourceId?: string;
+  userId?: string;
   title: string;
   content: string;
   structuredData?: Record<string, any>;
