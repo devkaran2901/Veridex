@@ -3,128 +3,129 @@
 @tailwind utilities;
 
 @layer utilities {
-  .neo-box {
+  .bauhaus-card {
     background-color: #ffffff;
-    border: 3px solid #000000;
-    box-shadow: 4px 4px 0px 0px #000000;
-    border-radius: 1rem;
+    border: 2px solid #1c1917;
+    box-shadow: 4px 4px 0px 0px #1c1917;
+    border-radius: 0.5rem;
   }
 
-  .neo-box-lime {
-    background-color: #ccff00;
-    border: 3px solid #000000;
-    box-shadow: 4px 4px 0px 0px #000000;
-    border-radius: 1rem;
+  .bauhaus-card-cream {
+    background-color: #f4f1ea;
+    border: 2px solid #1c1917;
+    box-shadow: 4px 4px 0px 0px #1c1917;
+    border-radius: 0.5rem;
   }
 
-  .neo-box-coral {
-    background-color: #ff6b5b;
-    border: 3px solid #000000;
-    box-shadow: 4px 4px 0px 0px #000000;
-    border-radius: 1rem;
+  .bauhaus-card-red {
+    background-color: #e63946;
+    color: #ffffff;
+    border: 2px solid #1c1917;
+    box-shadow: 4px 4px 0px 0px #1c1917;
+    border-radius: 0.5rem;
   }
 
-  .neo-box-yellow {
-    background-color: #ffe600;
-    border: 3px solid #000000;
-    box-shadow: 4px 4px 0px 0px #000000;
-    border-radius: 1rem;
+  .bauhaus-card-blue {
+    background-color: #2563eb;
+    color: #ffffff;
+    border: 2px solid #1c1917;
+    box-shadow: 4px 4px 0px 0px #1c1917;
+    border-radius: 0.5rem;
   }
 
-  .neo-box-purple {
-    background-color: #6a38ff;
-    border: 3px solid #000000;
-    box-shadow: 4px 4px 0px 0px #000000;
-    border-radius: 1rem;
+  .bauhaus-card-yellow {
+    background-color: #fbbf24;
+    color: #1c1917;
+    border: 2px solid #1c1917;
+    box-shadow: 4px 4px 0px 0px #1c1917;
+    border-radius: 0.5rem;
   }
 
-  .neo-btn {
-    background-color: #ccff00;
-    color: #000000;
-    border: 3px solid #000000;
+  .bauhaus-btn {
+    background-color: #1c1917;
+    color: #ffffff;
+    border: 2px solid #1c1917;
     font-weight: 700;
-    box-shadow: 4px 4px 0px 0px #000000;
-    border-radius: 0.75rem;
-    transition: all 0.15s ease-in-out;
-  }
-
-  .neo-btn:hover {
-    transform: translate(-2px, -2px);
-    box-shadow: 6px 6px 0px 0px #000000;
-  }
-
-  .neo-btn:active {
-    transform: translate(2px, 2px);
-    box-shadow: 2px 2px 0px 0px #000000;
-  }
-
-  .neo-btn-coral {
-    background-color: #ff6b5b;
-    color: #000000;
-    border: 3px solid #000000;
-    font-weight: 700;
-    box-shadow: 4px 4px 0px 0px #000000;
-    border-radius: 0.75rem;
-    transition: all 0.15s ease-in-out;
-  }
-
-  .neo-btn-coral:hover {
-    transform: translate(-2px, -2px);
-    box-shadow: 6px 6px 0px 0px #000000;
-  }
-
-  .neo-btn-yellow {
-    background-color: #ffe600;
-    color: #000000;
-    border: 3px solid #000000;
-    font-weight: 700;
-    box-shadow: 4px 4px 0px 0px #000000;
-    border-radius: 0.75rem;
-    transition: all 0.15s ease-in-out;
-  }
-
-  .neo-btn-yellow:hover {
-    transform: translate(-2px, -2px);
-    box-shadow: 6px 6px 0px 0px #000000;
-  }
-
-  .neo-input {
-    background-color: #ffffff;
-    border: 3px solid #000000;
-    color: #000000;
-    font-weight: 600;
-    box-shadow: 3px 3px 0px 0px #000000;
-    border-radius: 0.75rem;
-  }
-
-  .neo-badge {
-    border: 2px solid #000000;
-    font-weight: 700;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    padding: 0.15rem 0.6rem;
     border-radius: 9999px;
-    box-shadow: 2px 2px 0px 0px #000000;
+    transition: all 0.2s ease-in-out;
+  }
+
+  .bauhaus-btn:hover {
+    background-color: #e63946;
+    color: #ffffff;
+    border-color: #1c1917;
+    transform: translateY(-1px);
+  }
+
+  .bauhaus-btn-secondary {
+    background-color: #ffffff;
+    color: #1c1917;
+    border: 2px solid #1c1917;
+    font-weight: 700;
+    border-radius: 9999px;
+    transition: all 0.2s ease-in-out;
+  }
+
+  .bauhaus-btn-secondary:hover {
+    background-color: #2563eb;
+    color: #ffffff;
+  }
+
+  .bauhaus-btn-accent {
+    background-color: #e63946;
+    color: #ffffff;
+    border: 2px solid #1c1917;
+    font-weight: 700;
+    border-radius: 9999px;
+    transition: all 0.2s ease-in-out;
+  }
+
+  .bauhaus-btn-accent:hover {
+    background-color: #d9381e;
+    transform: translateY(-1px);
+  }
+
+  .bauhaus-input {
+    background-color: #ffffff;
+    border: 2px solid #1c1917;
+    color: #1c1917;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    transition: border-color 0.15s ease-in-out;
+  }
+
+  .bauhaus-input:focus {
+    border-color: #2563eb;
+    outline: none;
+  }
+
+  .bauhaus-badge {
+    border: 1.5px solid #1c1917;
+    font-weight: 700;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.2rem 0.6rem;
+    border-radius: 9999px;
   }
 }
 
-/* Custom Neobrutalist Scrollbar */
+/* Custom Bauhaus Scrollbar */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #581c87;
-  border-left: 2px solid #000000;
+  background: #f4f1ea;
+  border-left: 1px solid #dcd7cc;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #ccff00;
-  border: 2px solid #000000;
+  background: #1c1917;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #ffe600;
+  background: #e63946;
 }

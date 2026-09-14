@@ -116,7 +116,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#581c87] p-3 gap-3">
+    <div className="flex h-screen w-screen overflow-hidden bg-[#18181b] p-3 gap-3">
       {/* Sidebar Navigation */}
       <Sidebar 
         activeTab={activeTab} 
@@ -125,10 +125,10 @@ export const App: React.FC = () => {
       />
 
       {/* Main Workspace Area */}
-      <div className="flex-1 flex flex-col h-full min-w-0 neo-box bg-[#a3e635] overflow-hidden">
+      <div className="flex-1 flex flex-col h-full min-w-0 bauhaus-card-cream overflow-hidden">
         <Header dbConnected={dbConnected} socketConnected={socketConnected} />
 
-        <main className="flex-1 flex min-h-0 relative overflow-hidden bg-[#a3e635]">
+        <main className="flex-1 flex min-h-0 relative overflow-hidden bg-[#f4f1ea]">
           {activeTab === 'chat' && (
             <ChatInterface
               messages={messages}

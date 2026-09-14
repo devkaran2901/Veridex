@@ -28,28 +28,28 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       prompt: "What does the government report say about flood management?",
       icon: BookOpen,
       badge: "PDF Search",
-      color: "bg-[#38bdf8]"
+      color: "bg-[#2563eb] text-white"
     },
     {
       title: "Live API Feed",
       prompt: "What is the current weather in Delhi?",
       icon: CloudSun,
       badge: "Real-Time Feed",
-      color: "bg-[#ccff00]"
+      color: "bg-[#e63946] text-white"
     },
     {
       title: "Long-Term Memory",
       prompt: "What are my preferences for travelling?",
       icon: Brain,
       badge: "User Memory",
-      color: "bg-[#d8b4fe]"
+      color: "bg-[#fbbf24] text-black"
     },
     {
       title: "Multi-Tool Synthesis",
       prompt: "Considering today's weather, government advisories, and my travel preferences, should I travel to Delhi tomorrow?",
       icon: Compass,
       badge: "Multi-Source RAG",
-      color: "bg-[#ff6b5b]"
+      color: "bg-[#1c1917] text-white"
     }
   ];
 
@@ -61,19 +61,22 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#e9d5ff]/40 relative">
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#f4f1ea] relative">
       {/* Messages Scroll Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.length === 0 ? (
           <div className="max-w-3xl mx-auto mt-4 space-y-8 text-center">
-            <div className="neo-box bg-white p-8 space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-[#ccff00] border-3 border-black shadow-[4px_4px_0px_0px_#000] flex items-center justify-center mx-auto mb-2">
-                <Sparkles className="w-9 h-9 text-black fill-[#ff6b5b]" />
+            {/* Hero Card */}
+            <div className="bauhaus-card p-8 space-y-4 text-center border-2 border-[#1c1917] bg-white shadow-bauhaus">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <span className="w-6 h-6 bg-[#e63946] border border-[#1c1917] inline-block" />
+                <span className="w-6 h-6 bg-[#2563eb] rounded-full border border-[#1c1917] inline-block" />
+                <span className="w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-b-[20px] border-b-[#fbbf24] inline-block" />
               </div>
-              <h2 className="text-3xl font-black text-black uppercase tracking-tight">
-                Veridex Agentic RAG Assistant
+              <h2 className="text-3xl font-extrabold text-[#1c1917] uppercase tracking-tight font-display">
+                Veridex Agentic RAG Workstation
               </h2>
-              <p className="text-black text-sm font-bold max-w-lg mx-auto leading-relaxed">
+              <p className="text-[#1c1917]/80 text-xs font-bold max-w-lg mx-auto leading-relaxed">
                 Autonomous AI engine over Live Government APIs, PostgreSQL pgvector RAG, and Long-Term Memory.
               </p>
             </div>
@@ -86,20 +89,20 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   <button
                     key={i}
                     onClick={() => onSendMessage(q.prompt)}
-                    className="p-5 rounded-2xl bg-white border-3 border-black shadow-[4px_4px_0px_0px_#000] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_#000] hover:bg-[#ffe600] transition-all text-left group"
+                    className="p-5 rounded-lg bg-white border-2 border-[#1c1917] shadow-bauhaus hover:bg-[#e63946] hover:text-white transition-all text-left group"
                   >
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs font-black uppercase text-black flex items-center gap-2">
-                        <span className={`p-1.5 rounded-lg border-2 border-black ${q.color}`}>
-                          <Icon className="w-4 h-4 text-black stroke-[2.5]" />
+                      <span className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-2">
+                        <span className={`p-1.5 rounded-full border border-[#1c1917] ${q.color}`}>
+                          <Icon className="w-4 h-4 stroke-[2.5]" />
                         </span>
                         {q.title}
                       </span>
-                      <span className="neo-badge bg-black text-white text-[10px]">
+                      <span className="bauhaus-badge bg-[#1c1917] text-white text-[9px] group-hover:bg-white group-hover:text-black">
                         {q.badge}
                       </span>
                     </div>
-                    <p className="text-xs font-bold text-black leading-snug">
+                    <p className="text-xs font-bold leading-snug">
                       "{q.prompt}"
                     </p>
                   </button>
@@ -117,38 +120,38 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               >
                 {/* Avatar */}
                 <div
-                  className={`w-10 h-10 rounded-xl border-3 border-black shadow-[3px_3px_0px_0px_#000] flex items-center justify-center flex-shrink-0 font-black ${
+                  className={`w-9 h-9 rounded-full border-2 border-[#1c1917] flex items-center justify-center flex-shrink-0 font-extrabold ${
                     isUser
-                      ? 'bg-[#ffe600] text-black'
-                      : 'bg-[#ccff00] text-black'
+                      ? 'bg-[#e63946] text-white'
+                      : 'bg-[#2563eb] text-white'
                   }`}
                 >
-                  {isUser ? <User className="w-6 h-6 stroke-[2.5]" /> : <Bot className="w-6 h-6 stroke-[2.5]" />}
+                  {isUser ? <User className="w-5 h-5 stroke-[2.5]" /> : <Bot className="w-5 h-5 stroke-[2.5]" />}
                 </div>
 
                 {/* Content Bubble */}
                 <div
-                  className={`p-5 rounded-2xl text-sm font-bold leading-relaxed border-3 border-black shadow-[4px_4px_0px_0px_#000] ${
+                  className={`p-5 rounded-2xl text-xs font-bold leading-relaxed border-2 border-[#1c1917] shadow-bauhaus ${
                     isUser
-                      ? 'bg-[#ffe600] text-black rounded-tr-none'
-                      : 'bg-white text-black rounded-tl-none space-y-4'
+                      ? 'bg-[#e63946] text-white rounded-tr-none'
+                      : 'bg-white text-[#1c1917] rounded-tl-none space-y-4'
                   }`}
                 >
                   <p className="whitespace-pre-wrap">{msg.content}</p>
 
                   {/* Citations / Sources Tagging */}
                   {msg.citations && msg.citations.length > 0 && (
-                    <div className="pt-4 border-t-3 border-black space-y-2">
-                      <div className="text-[11px] font-black text-black uppercase tracking-wider">
+                    <div className="pt-4 border-t-2 border-[#1c1917] space-y-2">
+                      <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#1c1917]">
                         CITED EVIDENCE & SOURCES:
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {msg.citations.map((cite, idx) => (
                           <span
                             key={idx}
-                            className="neo-badge bg-[#ccff00] text-black flex items-center gap-1.5"
+                            className="bauhaus-badge bg-[#fbbf24] text-black flex items-center gap-1.5"
                           >
-                            <span className="w-2 h-2 rounded-full bg-black" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#1c1917]" />
                             {cite.source} {cite.page ? `(Pg ${cite.page})` : ''}
                           </span>
                         ))}
@@ -163,11 +166,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
         {isThinking && (
           <div className="flex gap-4 max-w-3xl">
-            <div className="w-10 h-10 rounded-xl bg-[#ccff00] border-3 border-black shadow-[3px_3px_0px_0px_#000] text-black flex items-center justify-center">
-              <Bot className="w-6 h-6 stroke-[2.5]" />
+            <div className="w-9 h-9 rounded-full bg-[#2563eb] border-2 border-[#1c1917] text-white flex items-center justify-center">
+              <Bot className="w-5 h-5 stroke-[2.5]" />
             </div>
-            <div className="p-4 rounded-2xl rounded-tl-none bg-white border-3 border-black shadow-[4px_4px_0px_0px_#000] text-xs font-black text-black flex items-center gap-3">
-              <span className="w-3 h-3 rounded-full bg-[#ff6b5b] border-2 border-black animate-ping" />
+            <div className="p-4 rounded-2xl rounded-tl-none bg-white border-2 border-[#1c1917] shadow-bauhaus text-xs font-extrabold text-[#1c1917] flex items-center gap-3">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#e63946] border border-[#1c1917] animate-ping" />
               <span>VERIDEX AGENT IS REASONING & RETRIEVING EVIDENCE...</span>
             </div>
           </div>
@@ -175,25 +178,25 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       </div>
 
       {/* Input Box Bar */}
-      <div className="p-4 border-t-3 border-black bg-white">
+      <div className="p-4 border-t-2 border-[#1c1917] bg-[#f4f1ea]">
         <form onSubmit={handleSubmit} className="max-w-3xl mx-auto relative flex items-center">
           <input
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             placeholder="Ask anything (e.g., 'What is today's weather in Delhi?')"
-            className="w-full py-3.5 pl-5 pr-14 rounded-2xl bg-white border-3 border-black text-black placeholder-gray-500 font-bold text-sm outline-none shadow-[4px_4px_0px_0px_#000] focus:shadow-[6px_6px_0px_0px_#000] transition-all"
+            className="w-full py-3 pl-6 pr-14 rounded-full bg-white border-2 border-[#1c1917] text-[#1c1917] placeholder-gray-500 font-bold text-xs outline-none shadow-bauhaus focus:border-[#2563eb] transition-all"
           />
           <button
             type="submit"
             disabled={!inputText.trim() || isThinking}
-            className="absolute right-2.5 p-2.5 rounded-xl neo-btn disabled:opacity-40 flex items-center justify-center"
+            className="absolute right-2 p-2 rounded-full bauhaus-btn-accent text-white disabled:opacity-40 flex items-center justify-center"
           >
-            <Send className="w-4 h-4 stroke-[3]" />
+            <Send className="w-4 h-4 stroke-[2.5]" />
           </button>
         </form>
-        <p className="text-[11px] font-bold text-black text-center mt-2 flex items-center justify-center gap-1">
-          Press <kbd className="px-1.5 py-0.5 rounded bg-[#ffe600] border-2 border-black font-black">ENTER</kbd> to execute Agentic query
+        <p className="text-[10px] font-bold text-[#1c1917]/70 text-center mt-2 flex items-center justify-center gap-1">
+          Press <kbd className="px-1.5 py-0.5 rounded bg-[#fbbf24] border border-[#1c1917] text-[#1c1917] font-extrabold">ENTER</kbd> to execute Agentic query
         </p>
       </div>
     </div>

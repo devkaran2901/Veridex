@@ -126,26 +126,26 @@ export const KnowledgeBasePage: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 p-6 md:p-8 overflow-y-auto space-y-6">
+    <div className="flex-1 p-6 md:p-8 overflow-y-auto space-y-6 bg-[#f4f1ea] text-[#1c1917]">
       {/* Header Banner */}
-      <div className="neo-box p-6 bg-[#ffe600] border-3 border-black shadow-[6px_6px_0px_0px_#000000] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bauhaus-card p-6 bg-[#fbbf24] border-2 border-[#1c1917] shadow-bauhaus flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-black uppercase tracking-tight text-black flex items-center gap-2">
-              <Database className="w-7 h-7 text-black stroke-[3]" /> Veridex Knowledge Layer
+            <h2 className="text-xl font-extrabold uppercase tracking-tight text-[#1c1917] flex items-center gap-2 font-display">
+              <Database className="w-6 h-6 text-[#1c1917] stroke-[2.5]" /> Veridex Knowledge Layer
             </h2>
             {statusInfo && (
-              <span className={`neo-badge text-xs ${
+              <span className={`bauhaus-badge text-xs ${
                 statusInfo.dataMode === 'live' 
-                  ? 'bg-[#a3e635] text-black' 
-                  : 'bg-[#ff6b5b] text-black'
+                  ? 'bg-[#e63946] text-white' 
+                  : 'bg-[#2563eb] text-white'
               }`}>
                 {statusInfo.dataMode === 'live' ? <Shield className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
                 MODE: {statusInfo.dataMode?.toUpperCase()}
               </span>
             )}
           </div>
-          <p className="text-xs font-bold text-black/80 mt-1">
+          <p className="text-xs font-bold text-[#1c1917]/80 mt-1">
             Continuous Live Government Ingestion Pipeline (IMD, data.gov.in, NDMA) + PostgreSQL pgvector Hybrid Retrieval.
           </p>
         </div>
@@ -154,7 +154,7 @@ export const KnowledgeBasePage: React.FC = () => {
           <button
             onClick={handleSyncIngestion}
             disabled={syncing}
-            className="neo-btn neo-btn-primary text-xs font-black uppercase py-2.5 px-4 flex items-center gap-2"
+            className="bauhaus-btn text-xs font-extrabold uppercase py-2.5 px-4 flex items-center gap-2"
           >
             <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
             {syncing ? 'Ingesting Feeds...' : 'Sync Feeds Now'}
@@ -171,7 +171,7 @@ export const KnowledgeBasePage: React.FC = () => {
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="neo-btn neo-btn-accent text-xs font-black uppercase py-2.5 px-4 flex items-center gap-2"
+            className="bauhaus-btn-accent text-xs font-extrabold uppercase py-2.5 px-4 flex items-center gap-2"
           >
             {uploading ? (
               <>
@@ -187,13 +187,13 @@ export const KnowledgeBasePage: React.FC = () => {
       </div>
 
       {/* Sub-Tab Navigation */}
-      <div className="flex gap-3">
+      <div className="flex gap-2">
         <button
           onClick={() => setActiveSubTab('live')}
-          className={`neo-btn text-xs font-black uppercase py-2 px-4 flex items-center gap-2 ${
+          className={`py-2 px-4 rounded-full text-xs font-extrabold uppercase border-2 border-[#1c1917] transition-all flex items-center gap-2 ${
             activeSubTab === 'live'
-              ? 'bg-[#a3e635] text-black shadow-[4px_4px_0px_0px_#000000]'
-              : 'bg-white text-black hover:bg-gray-100'
+              ? 'bg-[#1c1917] text-white'
+              : 'bg-white text-[#1c1917] hover:bg-[#eae6df]'
           }`}
         >
           <Sparkles className="w-4 h-4 stroke-[2.5]" /> Live Knowledge ({knowledgeRecords.length})
@@ -201,10 +201,10 @@ export const KnowledgeBasePage: React.FC = () => {
 
         <button
           onClick={() => setActiveSubTab('static')}
-          className={`neo-btn text-xs font-black uppercase py-2 px-4 flex items-center gap-2 ${
+          className={`py-2 px-4 rounded-full text-xs font-extrabold uppercase border-2 border-[#1c1917] transition-all flex items-center gap-2 ${
             activeSubTab === 'static'
-              ? 'bg-[#38bdf8] text-black shadow-[4px_4px_0px_0px_#000000]'
-              : 'bg-white text-black hover:bg-gray-100'
+              ? 'bg-[#2563eb] text-white'
+              : 'bg-white text-[#1c1917] hover:bg-[#eae6df]'
           }`}
         >
           <FileText className="w-4 h-4 stroke-[2.5]" /> Static Documents ({documents.length})
@@ -216,25 +216,25 @@ export const KnowledgeBasePage: React.FC = () => {
         <div className="space-y-6">
           {/* Government Datasets Explorer Cards */}
           <div>
-            <h3 className="text-xs font-black uppercase tracking-wider text-white mb-3 flex items-center gap-2">
-              <Tag className="w-4 h-4 text-[#ffe600]" /> Open Datasets Catalog ({datasets.length})
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#1c1917] mb-3 flex items-center gap-2 font-display">
+              <Tag className="w-4 h-4 text-[#e63946]" /> Open Datasets Catalog ({datasets.length})
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {datasets.map((ds) => (
-                <div key={ds.id} className="neo-box p-4 bg-white border-3 border-black shadow-[4px_4px_0px_0px_#000000] space-y-2">
+                <div key={ds.id} className="bauhaus-card p-4 bg-white border-2 border-[#1c1917] shadow-sm space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="neo-badge bg-[#a3e635] text-black text-[10px]">
+                    <span className="bauhaus-badge bg-[#2563eb] text-white text-[9px]">
                       {ds.source}
                     </span>
-                    <span className="text-[10px] font-bold text-black flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-black" /> Live Synced
+                    <span className="text-[10px] font-bold text-[#1c1917]/70 flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-[#1c1917]" /> Live Synced
                     </span>
                   </div>
-                  <h4 className="font-black text-sm text-black leading-snug">{ds.name}</h4>
-                  <p className="text-xs font-medium text-black/70 line-clamp-2">{ds.description}</p>
-                  <div className="pt-2 flex items-center justify-between border-t-2 border-black text-xs font-bold text-black">
-                    <span>Records: <strong className="text-[#581c87] text-sm">{ds.record_count}</strong></span>
-                    {ds.is_mock && <span className="neo-badge bg-[#ffe600] text-black text-[9px]">DEMO REGISTRY</span>}
+                  <h4 className="font-extrabold text-sm text-[#1c1917] leading-snug font-display">{ds.name}</h4>
+                  <p className="text-xs font-medium text-[#1c1917]/70 line-clamp-2">{ds.description}</p>
+                  <div className="pt-2 flex items-center justify-between border-t border-[#1c1917] text-xs font-bold text-[#1c1917]">
+                    <span>Records: <strong className="text-[#e63946] text-sm">{ds.record_count}</strong></span>
+                    {ds.is_mock && <span className="bauhaus-badge bg-[#fbbf24] text-black text-[9px]">DEMO REGISTRY</span>}
                   </div>
                 </div>
               ))}
@@ -242,49 +242,49 @@ export const KnowledgeBasePage: React.FC = () => {
           </div>
 
           {/* Ingested Knowledge Records Table */}
-          <div className="neo-box bg-white border-3 border-black shadow-[6px_6px_0px_0px_#000000] overflow-hidden">
-            <div className="p-4 bg-[#a3e635] border-b-3 border-black flex items-center justify-between">
-              <span className="font-black text-sm text-black uppercase tracking-wide flex items-center gap-2">
-                <Shield className="w-5 h-5 text-black stroke-[2.5]" /> pgvector Knowledge Records ({knowledgeRecords.length})
+          <div className="bauhaus-card bg-white border-2 border-[#1c1917] shadow-bauhaus overflow-hidden">
+            <div className="p-4 bg-[#1c1917] text-white border-b-2 border-[#1c1917] flex items-center justify-between">
+              <span className="font-extrabold text-xs uppercase tracking-wide flex items-center gap-2 font-display">
+                <Shield className="w-4 h-4 text-[#e63946] stroke-[2.5]" /> pgvector Knowledge Records ({knowledgeRecords.length})
               </span>
-              <span className="neo-badge bg-white text-black text-xs font-bold">
+              <span className="bauhaus-badge bg-[#fbbf24] text-black text-[10px]">
                 SHA-256 Deduplicated
               </span>
             </div>
 
             {knowledgeRecords.length === 0 ? (
-              <div className="p-8 text-center text-black font-bold text-sm bg-white">
+              <div className="p-8 text-center text-[#1c1917] font-bold text-xs bg-white">
                 No live knowledge records loaded yet. Click "Sync Feeds Now" above to trigger ingestion pipeline.
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm text-black">
-                  <thead className="bg-[#fef08a] border-b-3 border-black text-xs font-black uppercase tracking-wider">
+                <table className="w-full text-left text-xs text-[#1c1917]">
+                  <thead className="bg-[#eae6df] border-b-2 border-[#1c1917] text-[10px] font-extrabold uppercase tracking-wider">
                     <tr>
-                      <th className="p-4 border-r-2 border-black">Source</th>
-                      <th className="p-4 border-r-2 border-black">Title</th>
-                      <th className="p-4 border-r-2 border-black">Version</th>
-                      <th className="p-4 border-r-2 border-black">Freshness</th>
-                      <th className="p-4">Valid From</th>
+                      <th className="p-3 border-r border-[#1c1917]">Source</th>
+                      <th className="p-3 border-r border-[#1c1917]">Title</th>
+                      <th className="p-3 border-r border-[#1c1917]">Version</th>
+                      <th className="p-3 border-r border-[#1c1917]">Freshness</th>
+                      <th className="p-3">Valid From</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y-2 divide-black font-medium">
+                  <tbody className="divide-y border-[#1c1917] font-medium">
                     {knowledgeRecords.map((rec) => (
-                      <tr key={rec.id} className="hover:bg-[#a3e635]/20 text-xs">
-                        <td className="p-4 font-mono font-bold text-black border-r-2 border-black">{rec.source}</td>
-                        <td className="p-4 font-bold text-black max-w-sm truncate border-r-2 border-black">{rec.title}</td>
-                        <td className="p-4 border-r-2 border-black">
-                          <span className="neo-badge bg-[#d8b4fe] text-black text-[10px]">
+                      <tr key={rec.id} className="hover:bg-[#eae6df] text-xs">
+                        <td className="p-3 font-mono font-bold text-[#1c1917] border-r border-[#1c1917]">{rec.source}</td>
+                        <td className="p-3 font-bold text-[#1c1917] max-w-sm truncate border-r border-[#1c1917]">{rec.title}</td>
+                        <td className="p-3 border-r border-[#1c1917]">
+                          <span className="bauhaus-badge bg-[#2563eb] text-white text-[9px]">
                             v{rec.version || 1}
                           </span>
                         </td>
-                        <td className="p-4 border-r-2 border-black">
-                          <span className="neo-badge bg-[#a3e635] text-black text-[10px] flex items-center gap-1 w-max">
-                            <span className="w-2 h-2 rounded-full bg-black animate-pulse" />
+                        <td className="p-3 border-r border-[#1c1917]">
+                          <span className="bauhaus-badge bg-[#e63946] text-white text-[9px] flex items-center gap-1 w-max">
+                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                             FRESH
                           </span>
                         </td>
-                        <td className="p-4 text-black font-mono font-bold">{new Date(rec.valid_from).toLocaleTimeString()}</td>
+                        <td className="p-3 text-[#1c1917] font-mono font-bold">{new Date(rec.valid_from).toLocaleTimeString()}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -301,65 +301,65 @@ export const KnowledgeBasePage: React.FC = () => {
           {/* Upload Drop Zone */}
           <div
             onClick={() => fileInputRef.current?.click()}
-            className="neo-box p-8 bg-[#38bdf8] border-3 border-black border-dashed shadow-[6px_6px_0px_0px_#000000] text-center space-y-3 cursor-pointer hover:bg-[#38bdf8]/90 transition-all"
+            className="bauhaus-card p-8 bg-white border-2 border-dashed border-[#1c1917] shadow-bauhaus text-center space-y-3 cursor-pointer hover:bg-[#eae6df] transition-all"
           >
-            <div className="w-14 h-14 rounded-full bg-white border-3 border-black flex items-center justify-center mx-auto text-black shadow-[3px_3px_0px_0px_#000000]">
-              <Upload className="w-7 h-7 stroke-[3]" />
+            <div className="w-12 h-12 rounded-full bg-[#e63946] text-white border-2 border-[#1c1917] flex items-center justify-center mx-auto shadow-sm">
+              <Upload className="w-6 h-6 stroke-[2.5]" />
             </div>
-            <div className="text-base font-black uppercase text-black">
+            <div className="text-sm font-extrabold uppercase text-[#1c1917] font-display">
               Click or Drag PDF / TXT files here to upload
             </div>
-            <p className="text-xs font-bold text-black/80 max-w-md mx-auto">
+            <p className="text-xs font-bold text-[#1c1917]/70 max-w-md mx-auto">
               Files are broken into overlapping chunks, embedded with 1536-dim vectors, and indexed in PostgreSQL pgvector.
             </p>
           </div>
 
           {/* Indexed Documents Table */}
-          <div className="neo-box bg-white border-3 border-black shadow-[6px_6px_0px_0px_#000000] overflow-hidden">
-            <div className="p-4 bg-[#38bdf8] border-b-3 border-black font-black text-sm text-black uppercase tracking-wide">
+          <div className="bauhaus-card bg-white border-2 border-[#1c1917] shadow-bauhaus overflow-hidden">
+            <div className="p-4 bg-[#2563eb] text-white border-b-2 border-[#1c1917] font-extrabold text-xs uppercase tracking-wide font-display">
               Indexed Documents ({documents.length})
             </div>
 
             {documents.length === 0 ? (
-              <div className="p-8 text-center text-black font-bold text-sm bg-white">
+              <div className="p-8 text-center text-[#1c1917] font-bold text-xs bg-white">
                 No static documents uploaded yet. Upload a PDF or TXT file above.
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm text-black">
-                  <thead className="bg-[#fef08a] border-b-3 border-black text-xs font-black uppercase tracking-wider">
+                <table className="w-full text-left text-xs text-[#1c1917]">
+                  <thead className="bg-[#eae6df] border-b-2 border-[#1c1917] text-[10px] font-extrabold uppercase tracking-wider">
                     <tr>
-                      <th className="p-4 border-r-2 border-black">Document Title</th>
-                      <th className="p-4 border-r-2 border-black">Size</th>
-                      <th className="p-4 border-r-2 border-black">Chunks</th>
-                      <th className="p-4 border-r-2 border-black">Status</th>
-                      <th className="p-4 border-r-2 border-black">Uploaded</th>
-                      <th className="p-4 text-right">Actions</th>
+                      <th className="p-3 border-r border-[#1c1917]">Document Title</th>
+                      <th className="p-3 border-r border-[#1c1917]">Size</th>
+                      <th className="p-3 border-r border-[#1c1917]">Chunks</th>
+                      <th className="p-3 border-r border-[#1c1917]">Status</th>
+                      <th className="p-3 border-r border-[#1c1917]">Uploaded</th>
+                      <th className="p-3 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y-2 divide-black font-medium">
+                  <tbody className="divide-y border-[#1c1917] font-medium">
                     {documents.map((doc) => (
-                      <tr key={doc.id} className="hover:bg-[#38bdf8]/20 text-xs">
-                        <td className="p-4 font-bold text-black flex items-center gap-2 border-r-2 border-black">
-                          <FileText className="w-4 h-4 text-black stroke-[2.5]" />
+                      <tr key={doc.id} className="hover:bg-[#eae6df] text-xs">
+                        <td className="p-3 font-bold text-[#1c1917] flex items-center gap-2 border-r border-[#1c1917]">
+                          <FileText className="w-4 h-4 text-[#1c1917] stroke-[2.5]" />
                           {doc.title}
                         </td>
-                        <td className="p-4 text-black font-mono font-bold border-r-2 border-black">{(doc.file_size / 1024).toFixed(1)} KB</td>
-                        <td className="p-4 font-mono font-bold text-black border-r-2 border-black">{doc.chunk_count} chunks</td>
-                        <td className="p-4 border-r-2 border-black">
-                          <span className="neo-badge bg-[#a3e635] text-black text-[10px] flex items-center gap-1 w-max">
+                        <td className="p-3 text-[#1c1917] font-mono font-bold border-r border-[#1c1917]">{(doc.file_size / 1024).toFixed(1)} KB</td>
+                        <td className="p-3 font-mono font-bold text-[#1c1917] border-r border-[#1c1917]">{doc.chunk_count} chunks</td>
+                        <td className="p-3 border-r border-[#1c1917]">
+                          <span className="bauhaus-badge bg-[#e63946] text-white text-[9px] flex items-center gap-1 w-max">
                             <CheckCircle className="w-3.5 h-3.5 stroke-[2.5]" /> {doc.status}
                           </span>
                         </td>
-                        <td className="p-4 text-black font-mono font-bold border-r-2 border-black">
+                        <td className="p-3 text-[#1c1917] font-mono font-bold border-r border-[#1c1917]">
                           {new Date(doc.created_at).toLocaleDateString()}
                         </td>
-                        <td className="p-4 text-right">
+                        <td className="p-3 text-right">
                           <button
                             onClick={() => handleDeleteDoc(doc.id)}
-                            className="neo-btn bg-[#ff6b5b] hover:bg-[#ff6b5b]/90 text-black p-1.5"
+                            className="p-1 rounded-full bg-[#e63946] text-white border border-[#1c1917] hover:bg-black transition-all"
                           >
-                            <Trash2 className="w-4 h-4 stroke-[2.5]" />
+                            <Trash2 className="w-3.5 h-3.5 stroke-[2.5]" />
                           </button>
                         </td>
                       </tr>

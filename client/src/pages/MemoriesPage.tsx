@@ -94,21 +94,21 @@ export const MemoriesPage: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 p-6 md:p-8 overflow-y-auto space-y-6">
+    <div className="flex-1 p-6 md:p-8 overflow-y-auto space-y-6 bg-[#f4f1ea] text-[#1c1917]">
       {/* Header Banner */}
-      <div className="neo-box p-6 bg-[#d8b4fe] border-3 border-black shadow-[6px_6px_0px_0px_#000000] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bauhaus-card p-6 bg-[#1c1917] text-white border-2 border-[#1c1917] shadow-bauhaus flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black uppercase tracking-tight text-black flex items-center gap-2">
-            <Brain className="w-7 h-7 text-black stroke-[3]" /> Long-Term User Memories
+          <h2 className="text-xl font-extrabold uppercase tracking-tight text-white flex items-center gap-2 font-display">
+            <Brain className="w-6 h-6 text-[#e63946] stroke-[2.5]" /> Long-Term User Memories
           </h2>
-          <p className="text-xs font-bold text-black/80 mt-1">
+          <p className="text-xs font-bold opacity-80 mt-1">
             User preferences, facts, and past decisions stored with pgvector 1536-dim embeddings.
           </p>
         </div>
 
         <button
           onClick={() => setShowAddModal(true)}
-          className="neo-btn neo-btn-primary text-xs font-black uppercase py-2.5 px-4 flex items-center gap-2"
+          className="bauhaus-btn-accent text-xs font-extrabold uppercase py-2.5 px-5 flex items-center gap-2"
         >
           <Plus className="w-4 h-4 stroke-[3]" /> Add Memory
         </button>
@@ -117,29 +117,29 @@ export const MemoriesPage: React.FC = () => {
       {/* Add Memory Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-          <div className="neo-box p-6 bg-white border-4 border-black shadow-[10px_10px_0px_0px_#000000] w-full max-w-md space-y-4">
-            <h3 className="text-xl font-black uppercase text-black flex items-center gap-2 border-b-3 border-black pb-3">
-              <Brain className="w-6 h-6 text-black stroke-[3]" /> Add Long-Term Memory
+          <div className="bg-white border-2 border-[#1c1917] shadow-bauhaus rounded-lg w-full max-w-md p-6 space-y-4 text-[#1c1917]">
+            <h3 className="text-base font-extrabold uppercase text-[#1c1917] flex items-center gap-2 border-b-2 border-[#1c1917] pb-3 font-display">
+              <Brain className="w-5 h-5 text-[#e63946] stroke-[2.5]" /> Add Long-Term Memory
             </h3>
             <form onSubmit={handleAddMemory} className="space-y-4">
               <div>
-                <label className="block text-xs font-black uppercase text-black mb-1">Memory Content</label>
+                <label className="block text-xs font-extrabold uppercase text-[#1c1917] mb-1">Memory Content</label>
                 <textarea
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   placeholder="e.g. 'User prefers train travel over driving during bad weather'"
-                  className="neo-input w-full h-24 p-3 text-xs text-black font-bold outline-none"
+                  className="bauhaus-input w-full h-24 p-3 text-xs text-[#1c1917] font-bold outline-none"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-black uppercase text-black mb-1">Type</label>
+                  <label className="block text-xs font-extrabold uppercase text-[#1c1917] mb-1">Type</label>
                   <select
                     value={memoryType}
                     onChange={(e: any) => setMemoryType(e.target.value)}
-                    className="neo-input w-full py-2 px-3 text-xs text-black font-bold outline-none cursor-pointer"
+                    className="bauhaus-input w-full py-2 px-3 text-xs text-[#1c1917] font-bold outline-none cursor-pointer"
                   >
                     <option value="preference">Preference</option>
                     <option value="semantic">Semantic Fact</option>
@@ -148,11 +148,11 @@ export const MemoriesPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-black uppercase text-black mb-1">Importance</label>
+                  <label className="block text-xs font-extrabold uppercase text-[#1c1917] mb-1">Importance</label>
                   <select
                     value={importance}
                     onChange={(e: any) => setImportance(e.target.value)}
-                    className="neo-input w-full py-2 px-3 text-xs text-black font-bold outline-none cursor-pointer"
+                    className="bauhaus-input w-full py-2 px-3 text-xs text-[#1c1917] font-bold outline-none cursor-pointer"
                   >
                     <option value="high">High</option>
                     <option value="medium">Medium</option>
@@ -161,18 +161,18 @@ export const MemoriesPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t-3 border-black">
+              <div className="flex justify-end gap-3 pt-3 border-t-2 border-[#1c1917]">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="neo-btn bg-white hover:bg-gray-100 text-black text-xs font-black uppercase py-2 px-4"
+                  className="py-2 px-4 rounded-full bg-white hover:bg-[#eae6df] border border-[#1c1917] text-[#1c1917] text-xs font-extrabold uppercase"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="neo-btn neo-btn-primary text-xs font-black uppercase py-2 px-4"
+                  className="bauhaus-btn-accent text-xs font-extrabold uppercase py-2 px-5"
                 >
                   {saving ? 'Saving...' : 'Save to pgvector'}
                 </button>
@@ -183,9 +183,9 @@ export const MemoriesPage: React.FC = () => {
       )}
 
       {/* Memory Search Playground */}
-      <div className="neo-box p-5 bg-white border-3 border-black shadow-[6px_6px_0px_0px_#000000] space-y-4">
-        <h3 className="text-sm font-black uppercase tracking-wide text-black flex items-center gap-2">
-          <Search className="w-5 h-5 text-black stroke-[3]" /> Memory Vector Search Playground
+      <div className="bauhaus-card p-5 bg-white border-2 border-[#1c1917] shadow-bauhaus space-y-4">
+        <h3 className="text-xs font-extrabold uppercase tracking-wide text-[#1c1917] flex items-center gap-2 font-display">
+          <Search className="w-4 h-4 text-[#2563eb] stroke-[2.5]" /> Memory Vector Search Playground
         </h3>
         <form onSubmit={handleSearch} className="flex gap-3 flex-col sm:flex-row">
           <input
@@ -193,12 +193,12 @@ export const MemoriesPage: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Test query (e.g., 'What are my preferences for travelling?')"
-            className="neo-input flex-1 py-2.5 px-4 text-xs font-bold text-black placeholder-gray-500 outline-none"
+            className="bauhaus-input flex-1 py-2.5 px-4 text-xs font-bold text-[#1c1917] placeholder-gray-500 outline-none"
           />
           <button
             type="submit"
             disabled={searching}
-            className="neo-btn neo-btn-secondary text-xs font-black uppercase py-2.5 px-4"
+            className="bauhaus-btn-secondary text-xs font-extrabold uppercase py-2.5 px-5"
           >
             {searching ? 'Searching...' : 'Search Memory'}
           </button>
@@ -206,12 +206,12 @@ export const MemoriesPage: React.FC = () => {
 
         {searchResults.length > 0 && (
           <div className="space-y-2 pt-2">
-            <div className="text-xs font-black uppercase text-black">Relevant Memories:</div>
+            <div className="text-xs font-extrabold uppercase text-[#1c1917]">Relevant Memories:</div>
             {searchResults.map((mem, i) => (
-              <div key={i} className="neo-box p-3 bg-[#fef08a] border-2 border-black text-xs space-y-1">
-                <div className="flex items-center justify-between text-black font-bold">
+              <div key={i} className="p-3 bg-[#eae6df] border border-[#1c1917] rounded-lg text-xs space-y-1">
+                <div className="flex items-center justify-between text-[#1c1917] font-bold">
                   <span>[{mem.memoryType}] {mem.content}</span>
-                  <span className="neo-badge bg-[#a3e635] text-black font-mono">Score: {mem.score}</span>
+                  <span className="bauhaus-badge bg-[#e63946] text-white font-mono text-[9px]">Score: {mem.score}</span>
                 </div>
               </div>
             ))}
@@ -222,10 +222,10 @@ export const MemoriesPage: React.FC = () => {
       {/* Memory List */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {memories.length === 0 ? (
-          <div className="col-span-2 neo-box p-12 bg-white border-3 border-black shadow-[6px_6px_0px_0px_#000000] text-center space-y-3">
-            <Brain className="w-12 h-12 mx-auto text-black stroke-[2.5]" />
-            <p className="font-black text-lg text-black uppercase">No long-term memories saved yet.</p>
-            <p className="text-xs font-bold text-black/70">
+          <div className="col-span-2 bauhaus-card p-12 bg-white border-2 border-[#1c1917] shadow-bauhaus text-center space-y-3">
+            <Brain className="w-10 h-10 mx-auto text-[#1c1917] stroke-[2.5]" />
+            <p className="font-extrabold text-base text-[#1c1917] uppercase font-display">No long-term memories saved yet.</p>
+            <p className="text-xs font-bold text-[#1c1917]/70">
               Click "+ Add Memory" above or ask the agent a question to save preferences!
             </p>
           </div>
@@ -233,32 +233,32 @@ export const MemoriesPage: React.FC = () => {
           memories.map((mem) => (
             <div
               key={mem.id}
-              className="neo-box p-5 bg-white border-3 border-black shadow-[4px_4px_0px_0px_#000000] flex flex-col justify-between gap-4"
+              className="bauhaus-card p-5 bg-white border-2 border-[#1c1917] shadow-sm flex flex-col justify-between gap-4"
             >
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="neo-badge bg-[#ffe600] text-black text-xs font-mono">
+                  <span className="bauhaus-badge bg-[#2563eb] text-white text-[9px] font-mono">
                     {mem.memory_type}
                   </span>
-                  <span className="neo-badge bg-[#ff6b5b] text-black text-[10px]">
+                  <span className="bauhaus-badge bg-[#fbbf24] text-black text-[9px]">
                     {mem.importance} Importance
                   </span>
                 </div>
-                <p className="text-sm text-black leading-relaxed font-bold">
+                <p className="text-xs text-[#1c1917] leading-relaxed font-bold">
                   "{mem.content}"
                 </p>
               </div>
 
-              <div className="flex items-center justify-between pt-3 border-t-2 border-black text-xs font-bold text-black">
-                <span className="flex items-center gap-1 font-mono">
-                  <Calendar className="w-3.5 h-3.5 text-black stroke-[2.5]" />
+              <div className="flex items-center justify-between pt-3 border-t border-[#1c1917] text-xs font-bold text-[#1c1917]">
+                <span className="flex items-center gap-1 font-mono text-[10px]">
+                  <Calendar className="w-3.5 h-3.5 text-[#1c1917] stroke-[2.5]" />
                   {new Date(mem.created_at).toLocaleDateString()}
                 </span>
                 <button
                   onClick={() => handleDelete(mem.id)}
-                  className="neo-btn bg-[#ff6b5b] text-black p-1.5"
+                  className="p-1 rounded-full bg-[#e63946] text-white border border-[#1c1917] hover:bg-black transition-all"
                 >
-                  <Trash2 className="w-4 h-4 stroke-[2.5]" />
+                  <Trash2 className="w-3.5 h-3.5 stroke-[2.5]" />
                 </button>
               </div>
             </div>

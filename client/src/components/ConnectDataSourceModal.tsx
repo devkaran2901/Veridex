@@ -135,33 +135,33 @@ export const ConnectDataSourceModal: React.FC<ConnectDataSourceModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm overflow-y-auto">
-      <div className="bg-white border-4 border-black rounded-2xl w-full max-w-2xl overflow-hidden shadow-[8px_8px_0px_0px_#000] my-8 text-black">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 overflow-y-auto">
+      <div className="bg-white border-2 border-[#1c1917] rounded-lg w-full max-w-2xl overflow-hidden shadow-bauhaus my-8 text-[#1c1917]">
         {/* Modal Header */}
-        <div className="flex items-center justify-between p-6 border-b-3 border-black bg-[#ffe600]">
+        <div className="flex items-center justify-between p-5 border-b-2 border-[#1c1917] bg-[#e63946] text-white">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#ccff00] border-3 border-black shadow-[3px_3px_0px_0px_#000] flex items-center justify-center">
-              <Database className="w-5 h-5 text-black stroke-[2.5]" />
+            <div className="w-9 h-9 rounded-full bg-white text-[#1c1917] border border-[#1c1917] flex items-center justify-center">
+              <Database className="w-5 h-5 stroke-[2.5]" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-black tracking-wide uppercase">Connect Data Source</h2>
-              <p className="text-xs font-bold text-black">Add a custom REST/JSON API endpoint to Live Knowledge Layer</p>
+              <h2 className="text-lg font-extrabold tracking-tight uppercase font-display">Connect Data Source</h2>
+              <p className="text-xs font-bold opacity-90">Add a custom REST/JSON API endpoint to Live Knowledge Layer</p>
             </div>
           </div>
           <button
             onClick={handleClose}
-            className="p-1.5 bg-[#ff6b5b] border-2 border-black rounded-lg text-black font-black hover:bg-rose-500 transition-all"
+            className="p-1 bg-[#1c1917] text-white rounded-full font-extrabold w-7 h-7 flex items-center justify-center hover:bg-[#2563eb] transition-all"
           >
-            <X className="w-5 h-5 stroke-[3]" />
+            <X className="w-4 h-4 stroke-[3]" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <form onSubmit={handleAddDataSource} className="p-6 space-y-5">
+        <form onSubmit={handleAddDataSource} className="p-6 space-y-5 bg-[#f4f1ea]">
           {/* Name & URL */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-black uppercase tracking-wider mb-2">
+              <label className="block text-xs font-extrabold uppercase tracking-wider mb-2">
                 Data Source Name *
               </label>
               <input
@@ -170,17 +170,17 @@ export const ConnectDataSourceModal: React.FC<ConnectDataSourceModalProps> = ({
                 placeholder="e.g. Punjab Rainfall API"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-white border-3 border-black rounded-xl text-sm font-bold text-black shadow-[3px_3px_0px_0px_#000] focus:outline-none"
+                className="w-full px-3.5 py-2.5 bg-white border-2 border-[#1c1917] rounded-lg text-xs font-bold text-[#1c1917] focus:outline-none focus:border-[#2563eb]"
               />
             </div>
             <div>
-              <label className="block text-xs font-black uppercase tracking-wider mb-2">
+              <label className="block text-xs font-extrabold uppercase tracking-wider mb-2">
                 Refresh Interval
               </label>
               <select
                 value={refreshInterval}
                 onChange={(e) => setRefreshInterval(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-white border-3 border-black rounded-xl text-sm font-bold text-black shadow-[3px_3px_0px_0px_#000] focus:outline-none"
+                className="w-full px-3.5 py-2.5 bg-white border-2 border-[#1c1917] rounded-lg text-xs font-bold text-[#1c1917] focus:outline-none focus:border-[#2563eb]"
               >
                 <option value="5">Every 5 minutes</option>
                 <option value="10">Every 10 minutes</option>
@@ -193,7 +193,7 @@ export const ConnectDataSourceModal: React.FC<ConnectDataSourceModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-black uppercase tracking-wider mb-2">
+            <label className="block text-xs font-extrabold uppercase tracking-wider mb-2">
               API Endpoint URL (REST / JSON) *
             </label>
             <input
@@ -202,15 +202,15 @@ export const ConnectDataSourceModal: React.FC<ConnectDataSourceModalProps> = ({
               placeholder="https://example.gov/api/v1/rainfall"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-white border-3 border-black rounded-xl text-sm font-mono font-bold text-black shadow-[3px_3px_0px_0px_#000] focus:outline-none"
+              className="w-full px-3.5 py-2.5 bg-white border-2 border-[#1c1917] rounded-lg text-xs font-mono font-bold text-[#1c1917] focus:outline-none focus:border-[#2563eb]"
             />
           </div>
 
           {/* Authentication Config */}
-          <div className="p-4 bg-[#e9d5ff]/40 border-3 border-black rounded-xl space-y-4">
+          <div className="p-4 bg-white border-2 border-[#1c1917] rounded-lg space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
-                <Shield className="w-4 h-4 text-black stroke-[2.5]" /> Authentication
+              <span className="text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5 font-display">
+                <Shield className="w-4 h-4 text-[#1c1917] stroke-[2.5]" /> Authentication
               </span>
             </div>
 
@@ -218,10 +218,10 @@ export const ConnectDataSourceModal: React.FC<ConnectDataSourceModalProps> = ({
               <button
                 type="button"
                 onClick={() => setAuthType('none')}
-                className={`py-2 px-3 rounded-xl text-xs font-black uppercase border-2 border-black transition-all ${
+                className={`py-2 px-3 rounded-full text-xs font-extrabold uppercase border-2 border-[#1c1917] transition-all ${
                   authType === 'none'
-                    ? 'bg-[#ccff00] text-black shadow-[3px_3px_0px_0px_#000]'
-                    : 'bg-white text-black shadow-[2px_2px_0px_0px_#000]'
+                    ? 'bg-[#1c1917] text-white'
+                    : 'bg-white text-[#1c1917] hover:bg-[#eae6df]'
                 }`}
               >
                 No Auth
@@ -229,10 +229,10 @@ export const ConnectDataSourceModal: React.FC<ConnectDataSourceModalProps> = ({
               <button
                 type="button"
                 onClick={() => setAuthType('api_key')}
-                className={`py-2 px-3 rounded-xl text-xs font-black uppercase border-2 border-black transition-all ${
+                className={`py-2 px-3 rounded-full text-xs font-extrabold uppercase border-2 border-[#1c1917] transition-all ${
                   authType === 'api_key'
-                    ? 'bg-[#ffe600] text-black shadow-[3px_3px_0px_0px_#000]'
-                    : 'bg-white text-black shadow-[2px_2px_0px_0px_#000]'
+                    ? 'bg-[#2563eb] text-white'
+                    : 'bg-white text-[#1c1917] hover:bg-[#eae6df]'
                 }`}
               >
                 API Key
@@ -240,10 +240,10 @@ export const ConnectDataSourceModal: React.FC<ConnectDataSourceModalProps> = ({
               <button
                 type="button"
                 onClick={() => setAuthType('bearer')}
-                className={`py-2 px-3 rounded-xl text-xs font-black uppercase border-2 border-black transition-all ${
+                className={`py-2 px-3 rounded-full text-xs font-extrabold uppercase border-2 border-[#1c1917] transition-all ${
                   authType === 'bearer'
-                    ? 'bg-[#38bdf8] text-black shadow-[3px_3px_0px_0px_#000]'
-                    : 'bg-white text-black shadow-[2px_2px_0px_0px_#000]'
+                    ? 'bg-[#e63946] text-white'
+                    : 'bg-white text-[#1c1917] hover:bg-[#eae6df]'
                 }`}
               >
                 Bearer Token
@@ -254,18 +254,18 @@ export const ConnectDataSourceModal: React.FC<ConnectDataSourceModalProps> = ({
               <div className="space-y-3 pt-2">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-bold text-black mb-1">Key Placement</label>
+                    <label className="block text-[10px] font-bold text-[#1c1917] mb-1">Key Placement</label>
                     <select
                       value={apiKeyLocation}
                       onChange={(e) => setApiKeyLocation(e.target.value as any)}
-                      className="w-full px-3 py-2 bg-white border-2 border-black rounded-lg text-xs font-bold text-black"
+                      className="w-full px-3 py-2 bg-white border border-[#1c1917] rounded-lg text-xs font-bold text-[#1c1917]"
                     >
                       <option value="header">HTTP Header</option>
                       <option value="query">URL Query Parameter</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-black mb-1">
+                    <label className="block text-[10px] font-bold text-[#1c1917] mb-1">
                       {apiKeyLocation === 'header' ? 'Header Name' : 'Parameter Name'}
                     </label>
                     <input
@@ -274,18 +274,18 @@ export const ConnectDataSourceModal: React.FC<ConnectDataSourceModalProps> = ({
                       onChange={(e) =>
                         apiKeyLocation === 'header' ? setHeaderName(e.target.value) : setParamName(e.target.value)
                       }
-                      className="w-full px-3 py-2 bg-white border-2 border-black rounded-lg text-xs text-black font-mono font-bold"
+                      className="w-full px-3 py-2 bg-white border border-[#1c1917] rounded-lg text-xs text-[#1c1917] font-mono font-bold"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-black mb-1">API Key Value</label>
+                  <label className="block text-[10px] font-bold text-[#1c1917] mb-1">API Key Value</label>
                   <input
                     type="password"
                     placeholder="Enter API Key secret..."
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border-2 border-black rounded-lg text-xs text-black font-mono font-bold"
+                    className="w-full px-3 py-2 bg-white border border-[#1c1917] rounded-lg text-xs text-[#1c1917] font-mono font-bold"
                   />
                 </div>
               </div>
@@ -293,13 +293,13 @@ export const ConnectDataSourceModal: React.FC<ConnectDataSourceModalProps> = ({
 
             {authType === 'bearer' && (
               <div className="pt-2">
-                <label className="block text-[11px] font-bold text-black mb-1">Bearer Token Secret</label>
+                <label className="block text-[10px] font-bold text-[#1c1917] mb-1">Bearer Token Secret</label>
                 <input
                   type="password"
                   placeholder="Enter Bearer Token..."
                   value={bearerToken}
                   onChange={(e) => setBearerToken(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border-2 border-black rounded-lg text-xs text-black font-mono font-bold"
+                  className="w-full px-3 py-2 bg-white border border-[#1c1917] rounded-lg text-xs text-[#1c1917] font-mono font-bold"
                 />
               </div>
             )}
@@ -311,15 +311,15 @@ export const ConnectDataSourceModal: React.FC<ConnectDataSourceModalProps> = ({
               type="button"
               onClick={handleTestConnection}
               disabled={isTesting || !url.trim()}
-              className="py-2.5 px-4 neo-btn text-xs font-black uppercase flex items-center gap-2"
+              className="py-2 px-4 bauhaus-btn-secondary text-xs font-extrabold uppercase flex items-center gap-2"
             >
-              {isTesting ? <Loader2 className="w-4 h-4 animate-spin stroke-[3]" /> : <RefreshCw className="w-4 h-4 stroke-[3]" />}
+              {isTesting ? <Loader2 className="w-4 h-4 animate-spin stroke-[2.5]" /> : <RefreshCw className="w-4 h-4 stroke-[2.5]" />}
               <span>Test Connection</span>
             </button>
 
             {testResult?.success && (
-              <span className="neo-badge bg-[#ccff00] text-black flex items-center gap-1">
-                <CheckCircle2 className="w-4 h-4 stroke-[2.5]" /> Connection Verified
+              <span className="bauhaus-badge bg-[#e63946] text-white flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5 stroke-[2.5]" /> Connection Verified
               </span>
             )}
           </div>
@@ -327,36 +327,36 @@ export const ConnectDataSourceModal: React.FC<ConnectDataSourceModalProps> = ({
           {/* Test Connection Output Preview */}
           {testResult && (
             <div
-              className={`p-4 rounded-xl border-3 border-black shadow-[3px_3px_0px_0px_#000] ${
+              className={`p-4 rounded-lg border-2 border-[#1c1917] ${
                 testResult.success
-                  ? 'bg-[#ccff00]'
-                  : 'bg-[#ff6b5b]'
+                  ? 'bg-white'
+                  : 'bg-[#e63946] text-white'
               }`}
             >
               {testResult.success ? (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between text-xs font-bold text-black">
-                    <span className="font-black flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 stroke-[2.5]" /> Connection Successful
+                  <div className="flex items-center justify-between text-xs font-bold text-[#1c1917]">
+                    <span className="font-extrabold flex items-center gap-1.5 font-display">
+                      <CheckCircle2 className="w-4 h-4 text-[#e63946] stroke-[2.5]" /> Connection Successful
                     </span>
-                    <span className="font-mono bg-white px-2 py-0.5 border border-black rounded">
-                      Records: <strong>{testResult.recordCount}</strong> (Path: `{testResult.dataPath}`)
+                    <span className="font-mono bg-[#fbbf24] text-black px-2 py-0.5 border border-[#1c1917] rounded-full text-[10px]">
+                      Records: <strong>{testResult.recordCount}</strong>
                     </span>
                   </div>
 
                   {/* Detected Fields Schema Tag Cloud */}
                   {testResult.schema && testResult.schema.length > 0 && (
                     <div>
-                      <div className="text-[11px] font-black uppercase tracking-wider mb-1.5 text-black">
+                      <div className="text-[10px] font-extrabold uppercase tracking-wider mb-1 text-[#1c1917]">
                         Detected Field Schema
                       </div>
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex flex-wrap gap-1">
                         {testResult.schema.map((f) => (
                           <span
                             key={f.name}
-                            className="neo-badge bg-white text-black font-mono"
+                            className="bauhaus-badge bg-[#eae6df] text-[#1c1917] font-mono text-[9px]"
                           >
-                            {f.name}: <span className="text-gray-700">{f.type}</span>
+                            {f.name}: {f.type}
                           </span>
                         ))}
                       </div>
@@ -366,25 +366,25 @@ export const ConnectDataSourceModal: React.FC<ConnectDataSourceModalProps> = ({
                   {/* Sample Records Table */}
                   {testResult.preview && testResult.preview.length > 0 && (
                     <div>
-                      <div className="text-[11px] font-black uppercase tracking-wider mb-1.5 text-black">
-                        Data Preview (First {testResult.preview.length} records)
+                      <div className="text-[10px] font-extrabold uppercase tracking-wider mb-1 text-[#1c1917]">
+                        Data Preview
                       </div>
-                      <div className="overflow-x-auto max-h-40 border-2 border-black rounded-lg bg-white">
-                        <table className="w-full text-[11px] text-left text-black">
-                          <thead className="bg-[#ffe600] text-black uppercase text-[10px] font-black font-mono sticky top-0 border-b-2 border-black">
+                      <div className="overflow-x-auto max-h-36 border border-[#1c1917] rounded bg-[#f4f1ea]">
+                        <table className="w-full text-[10px] text-left text-[#1c1917]">
+                          <thead className="bg-[#1c1917] text-white uppercase font-mono sticky top-0">
                             <tr>
                               {Object.keys(testResult.preview[0] || {}).slice(0, 5).map((col) => (
-                                <th key={col} className="px-3 py-1.5">
+                                <th key={col} className="px-3 py-1">
                                   {col}
                                 </th>
                               ))}
                             </tr>
                           </thead>
-                          <tbody className="divide-y border-black font-mono font-bold">
+                          <tbody className="divide-y border-[#1c1917] font-mono font-bold">
                             {testResult.preview.map((row, idx) => (
-                              <tr key={idx} className="hover:bg-[#e9d5ff]/50">
+                              <tr key={idx} className="hover:bg-[#eae6df]">
                                 {Object.keys(testResult.preview![0] || {}).slice(0, 5).map((col) => (
-                                  <td key={col} className="px-3 py-1.5 truncate max-w-[120px]">
+                                  <td key={col} className="px-3 py-1 truncate max-w-[120px]">
                                     {typeof row[col] === 'object' ? JSON.stringify(row[col]) : String(row[col] ?? '')}
                                   </td>
                                 ))}
@@ -397,11 +397,11 @@ export const ConnectDataSourceModal: React.FC<ConnectDataSourceModalProps> = ({
                   )}
                 </div>
               ) : (
-                <div className="flex items-start gap-2.5 text-black text-xs font-bold">
-                  <AlertCircle className="w-5 h-5 text-black flex-shrink-0 mt-0.5 stroke-[2.5]" />
+                <div className="flex items-start gap-2.5 text-white text-xs font-bold">
+                  <AlertCircle className="w-5 h-5 text-white flex-shrink-0 mt-0.5 stroke-[2.5]" />
                   <div>
-                    <strong className="font-black uppercase block mb-0.5">Connection Failed</strong>
-                    <p className="font-mono text-[11px] bg-white p-2 border border-black rounded">{testResult.error}</p>
+                    <strong className="font-extrabold uppercase block mb-0.5 font-display">Connection Failed</strong>
+                    <p className="font-mono text-[10px] bg-[#1c1917] p-2 rounded">{testResult.error}</p>
                   </div>
                 </div>
               )}
@@ -409,27 +409,27 @@ export const ConnectDataSourceModal: React.FC<ConnectDataSourceModalProps> = ({
           )}
 
           {saveError && (
-            <div className="p-3 rounded-xl bg-[#ff6b5b] border-3 border-black text-black font-bold text-xs flex items-center gap-2 shadow-[3px_3px_0px_0px_#000]">
+            <div className="p-3 rounded-lg bg-[#e63946] text-white font-bold text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 stroke-[2.5] flex-shrink-0" />
               <span>{saveError}</span>
             </div>
           )}
 
           {/* Modal Footer Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t-3 border-black">
+          <div className="flex justify-end gap-3 pt-4 border-t-2 border-[#1c1917]">
             <button
               type="button"
               onClick={handleClose}
-              className="py-2.5 px-4 text-xs font-black uppercase text-black hover:bg-gray-200 rounded-xl transition-all"
+              className="py-2 px-4 text-xs font-extrabold uppercase text-[#1c1917] hover:bg-[#eae6df] rounded-full transition-all"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSaving || !name.trim() || !url.trim()}
-              className="py-2.5 px-5 neo-btn-coral text-xs font-black uppercase flex items-center gap-2 disabled:opacity-50"
+              className="py-2.5 px-6 bauhaus-btn-accent text-xs font-extrabold uppercase flex items-center gap-2 disabled:opacity-50"
             >
-              {isSaving && <Loader2 className="w-4 h-4 animate-spin stroke-[3]" />}
+              {isSaving && <Loader2 className="w-4 h-4 animate-spin stroke-[2.5]" />}
               <span>Add Data Source</span>
             </button>
           </div>

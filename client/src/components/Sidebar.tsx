@@ -21,27 +21,29 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onNewChat }) => {
   const navItems = [
-    { id: 'chat', label: 'Chat Assistant', icon: MessageSquare, color: 'bg-[#ffe600]' },
-    { id: 'sources', label: 'Data Sources', icon: Server, color: 'bg-[#ff6b5b]' },
-    { id: 'knowledge', label: 'Knowledge Base', icon: Database, color: 'bg-[#38bdf8]' },
-    { id: 'memories', label: 'Long-Term Memory', icon: Brain, color: 'bg-[#d8b4fe]' },
-    { id: 'runs', label: 'Agent Runs Trace', icon: Activity, color: 'bg-[#f472b6]' },
-    { id: 'settings', label: 'Settings', icon: Settings, color: 'bg-[#ffffff]' },
+    { id: 'chat', label: 'Chat Assistant', icon: MessageSquare, color: 'bg-[#e63946] text-white' },
+    { id: 'sources', label: 'Data Sources', icon: Server, color: 'bg-[#2563eb] text-white' },
+    { id: 'knowledge', label: 'Knowledge Base', icon: Database, color: 'bg-[#fbbf24] text-black' },
+    { id: 'memories', label: 'Long-Term Memory', icon: Brain, color: 'bg-[#1c1917] text-white' },
+    { id: 'runs', label: 'Agent Runs Trace', icon: Activity, color: 'bg-[#e63946] text-white' },
+    { id: 'settings', label: 'Settings', icon: Settings, color: 'bg-[#2563eb] text-white' },
   ];
 
   return (
-    <aside className="w-64 neo-box-lime h-full flex flex-col justify-between p-4 flex-shrink-0 z-20">
+    <aside className="w-64 bg-[#f4f1ea] border-2 border-[#1c1917] rounded-lg h-full flex flex-col justify-between p-4 flex-shrink-0 z-20 shadow-bauhaus">
       <div className="flex flex-col gap-5">
-        {/* Brand Header */}
-        <div className="flex items-center gap-3 px-2 pt-1">
-          <div className="w-11 h-11 rounded-xl bg-[#ffe600] border-3 border-black shadow-[3px_3px_0px_0px_#000] flex items-center justify-center">
-            <Bot className="w-7 h-7 text-black stroke-[2.5]" />
+        {/* Bauhaus Geometric Brand Header */}
+        <div className="flex items-center gap-3 px-1 pt-1 border-b-2 border-[#1c1917] pb-4">
+          <div className="flex items-center gap-1">
+            <span className="w-4 h-4 bg-[#e63946] inline-block border border-[#1c1917]" />
+            <span className="w-4 h-4 bg-[#2563eb] rounded-full inline-block border border-[#1c1917]" />
+            <span className="w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-b-[14px] border-b-[#fbbf24] inline-block" />
           </div>
           <div>
-            <h1 className="font-black text-xl text-black tracking-wider flex items-center gap-1.5 uppercase">
-              VERIDEX <Sparkles className="w-4 h-4 text-black fill-[#ff6b5b]" />
+            <h1 className="font-extrabold text-xl text-[#1c1917] tracking-tight uppercase font-display">
+              VERIDEX
             </h1>
-            <span className="text-[10px] font-black uppercase tracking-widest bg-black text-white px-2 py-0.5 rounded-full inline-block">
+            <span className="text-[9px] font-bold uppercase tracking-widest bg-[#1c1917] text-white px-2 py-0.5 rounded-full inline-block">
               AGENTIC RAG
             </span>
           </div>
@@ -50,16 +52,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onNew
         {/* New Chat Button */}
         <button
           onClick={onNewChat}
-          className="w-full py-3 px-4 neo-btn-coral text-black font-black uppercase tracking-wider flex items-center justify-center gap-2 text-sm"
+          className="w-full py-2.5 px-4 bauhaus-btn-accent text-white font-extrabold uppercase tracking-wider flex items-center justify-center gap-2 text-xs shadow-sm"
         >
-          <Plus className="w-5 h-5 stroke-[3]" />
+          <Plus className="w-4 h-4 stroke-[3]" />
           <span>New Chat</span>
         </button>
 
         {/* Navigation Items */}
-        <nav className="flex flex-col gap-2 pt-1">
-          <div className="text-[11px] font-black text-black uppercase tracking-widest px-2 mb-0.5">
-            NAVIGATION
+        <nav className="flex flex-col gap-1.5 pt-1">
+          <div className="text-[10px] font-bold text-[#1c1917]/70 uppercase tracking-widest px-2 mb-1">
+            Menu
           </div>
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -68,14 +70,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onNew
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id as ActiveTab)}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider border-3 border-black transition-all ${
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-full text-xs font-extrabold uppercase tracking-wider border-2 border-[#1c1917] transition-all ${
                   isActive
-                    ? `${item.color} text-black shadow-[4px_4px_0px_0px_#000] translate-x-[-1px] translate-y-[-1px]`
-                    : 'bg-white text-black shadow-[2px_2px_0px_0px_#000] hover:bg-[#ffe600] hover:shadow-[4px_4px_0px_0px_#000] hover:translate-x-[-1px] hover:translate-y-[-1px]'
+                    ? 'bg-[#1c1917] text-white shadow-[2px_2px_0px_0px_#e63946]'
+                    : 'bg-white text-[#1c1917] hover:bg-[#e63946] hover:text-white'
                 }`}
               >
-                <div className={`p-1.5 rounded-lg border-2 border-black ${isActive ? 'bg-white' : item.color}`}>
-                  <Icon className="w-4 h-4 text-black stroke-[2.5]" />
+                <div className={`p-1 rounded-full ${item.color} border border-[#1c1917]`}>
+                  <Icon className="w-3.5 h-3.5 stroke-[2.5]" />
                 </div>
                 <span>{item.label}</span>
               </button>
@@ -84,13 +86,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onNew
         </nav>
       </div>
 
-      {/* Student Project Badge */}
-      <div className="p-3 bg-white border-3 border-black shadow-[3px_3px_0px_0px_#000] rounded-xl text-black">
-        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider mb-1">
-          <span className="w-3 h-3 rounded-full bg-[#ccff00] border-2 border-black inline-block" />
-          BTech Final Project
+      {/* Bauhaus Footer Card */}
+      <div className="p-3 bg-white border-2 border-[#1c1917] rounded-lg text-[#1c1917]">
+        <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider mb-1">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#e63946] inline-block" />
+          BTech Project
         </div>
-        <p className="text-[11px] font-bold text-gray-800 leading-tight">
+        <p className="text-[10px] font-bold text-[#1c1917]/70 leading-tight">
           LangGraph RAG over Live APIs, pgvector & Memory
         </p>
       </div>

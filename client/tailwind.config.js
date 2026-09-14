@@ -7,34 +7,34 @@ export default {
   theme: {
     extend: {
       colors: {
-        neo: {
-          lime: '#ccff00',      // Electric Lime from reference
-          coral: '#ff6b5b',     // Vibrant Coral Pink
-          yellow: '#ffe600',    // Sunflower Yellow
-          purple: '#6a38ff',    // Deep Purple canvas
-          darkpurple: '#4c1d95',
-          lavender: '#d8b4fe',
-          cyan: '#38bdf8',
-          bg: '#581c87',
-          black: '#000000',
+        bauhaus: {
+          cream: '#f4f1ea',
+          sand: '#eae6df',
+          red: '#e63946',
+          darkred: '#d9381e',
+          blue: '#2563eb',
+          cobalt: '#1d4ed8',
+          yellow: '#fbbf24',
+          gold: '#f59e0b',
+          black: '#1c1917',
+          charcoal: '#27272a',
           white: '#ffffff',
-          pink: '#f472b6',
+          muted: '#dcd7cc',
         }
       },
       fontFamily: {
-        sans: ['Space Grotesk', 'sans-serif'],
+        sans: ['Plus Jakarta Sans', 'sans-serif'],
+        display: ['Space Grotesk', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
       },
       borderWidth: {
+        '2': '2px',
         '3': '3px',
-        '4': '4px',
       },
       boxShadow: {
-        'neo': '4px 4px 0px 0px #000000',
-        'neo-lg': '6px 6px 0px 0px #000000',
-        'neo-sm': '2px 2px 0px 0px #000000',
-        'neo-lime': '4px 4px 0px 0px #ccff00',
-        'neo-purple': '4px 4px 0px 0px #6a38ff',
+        'bauhaus': '4px 4px 0px 0px #1c1917',
+        'bauhaus-red': '4px 4px 0px 0px #e63946',
+        'bauhaus-blue': '4px 4px 0px 0px #2563eb',
       }
     },
   },
