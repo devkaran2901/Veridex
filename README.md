@@ -175,20 +175,4 @@ cd server
 npm run eval
 ```
 
----
 
-## 8. BTech Viva & Interview Q&A Guide
-
-> **Q1: What makes this system "Agentic" compared to standard RAG?**
-> **Answer**: Standard RAG blindly performs vector similarity search on every user prompt. Veridex uses a state-machine graph (LangGraph.js) to inspect user query intent first. It autonomously decides whether it needs live external weather APIs, government advisories, RAG document search, long-term user memory, or a combination of all four.
-
-> **Q2: Why use PostgreSQL with `pgvector` instead of Pinecone or Weaviate?**
-> **Answer**: `pgvector` allows storing relational application state (users, messages, audit logs) and high-dimensional vector embeddings in a single ACID-compliant database. This eliminates dual-database synchronization issues and allows joining document metadata directly with vector similarity in a single SQL query.
-
-> **Q3: How does the system handle real-time execution streaming?**
-> **Answer**: The backend emits Socket.IO events (`agent_step`) at each graph node (e.g. `Query Analyzed`, `Weather Checked`, `RAG Document Retrieved`). The React client listens to these WebSocket events to render live progress checkmarks and latencies in the Agent Trace panel.
-
----
-
-## 9. License
-MIT License - Open Source BTech CSE Final Year Project.
