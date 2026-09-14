@@ -1,0 +1,22 @@
+{
+  "name": "veridex-agentic-rag",
+  "version": "1.0.0",
+  "description": "Agentic RAG System over Live Data with Long-Term Memory",
+  "main": "server/src/index.ts",
+  "scripts": {
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:init": "cd server && npm run db:init"
+  },
+  "keywords": [
+    "agentic-rag",
+    "langgraph",
+    "pgvector",
+    "react",
+    "express"
+  ],
+  "author": "",
+  "license": "ISC"
+}
