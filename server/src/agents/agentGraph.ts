@@ -3,6 +3,8 @@ import { AgentState, Citation, ToolExecutionRecord } from './agentState';
 import { getLiveWeather } from '../tools/weatherProvider';
 import { getGovernmentData } from '../tools/governmentDataProvider';
 import { searchKnowledgeBase } from '../rag/ragService';
+import { searchLiveKnowledgeBase, parseTimeScope } from '../rag/hybridRetrieval';
+import { discoverDatasets } from '../ingestion/discovery/datasetRegistry';
 import { searchMemory, extractAndSaveMemories } from '../memory/memoryService';
 import { invokeLLM } from '../services/llm';
 import { io } from '../index';
@@ -34,20 +36,35 @@ function emitTraceStep(
 }
 
 /**
- * NODE 1: Analyze Query & Select Tools
+ * NODE 1: Analyze Query & Discover Government Datasets
  */
 async function analyzeQueryNode(state: AgentState): Promise<Partial<AgentState>> {
   const startTime = Date.now();
   const query = state.originalQuery.toLowerCase();
   const selectedTools: string[] = [];
 
-  emitTraceStep(state.conversationId, 'Query Analyzed & Intent Recognized', undefined, 'running', { query: state.originalQuery });
+  emitTraceStep(state.conversationId, 'Query Analyzed & Temporal Intent Recognized', undefined, 'running', { query: state.originalQuery });
 
-  // Intelligent Tool Selection Heuristics
+  const timeScope = parseTimeScope(query);
+
+  // 1. Government Dataset Discovery Component
+  const discoveredDatasets = discoverDatasets(query);
+  emitTraceStep(
+    state.conversationId,
+    `Discovered ${discoveredDatasets.length} Government Datasets (${discoveredDatasets.map((d) => d.name).join(', ')})`,
+    'discoverGovernmentDatasets',
+    'completed',
+    { query, timeScope },
+    { datasets: discoveredDatasets }
+  );
+
+  // 2. Intelligent Tool Selection
+  selectedTools.push('searchLiveKnowledgeBase');
+
   if (query.includes('weather') || query.includes('rain') || query.includes('temp') || query.includes('forecast')) {
     selectedTools.push('getLiveWeather');
   }
-  if (query.includes('flood') || query.includes('government') || query.includes('advisory') || query.includes('ndma') || query.includes('report')) {
+  if (query.includes('flood') || query.includes('government') || query.includes('advisory') || query.includes('report') || query.includes('pdf')) {
     selectedTools.push('getGovernmentData');
     selectedTools.push('searchKnowledgeBase');
   }
@@ -55,19 +72,19 @@ async function analyzeQueryNode(state: AgentState): Promise<Partial<AgentState>>
     selectedTools.push('searchMemory');
   }
 
-  // Multi-tool reasoning fallback for open-ended travel decisions
-  if (query.includes('should i travel') || query.includes('recommendation') || (selectedTools.length === 0 && query.length > 15)) {
-    if (!selectedTools.includes('getLiveWeather')) selectedTools.push('getLiveWeather');
-    if (!selectedTools.includes('getGovernmentData')) selectedTools.push('getGovernmentData');
-    if (!selectedTools.includes('searchKnowledgeBase')) selectedTools.push('searchKnowledgeBase');
-    if (!selectedTools.includes('searchMemory')) selectedTools.push('searchMemory');
-  }
-
-  // Extract implicit user preferences if present
+  // Extract implicit user preferences
   await extractAndSaveMemories(state.originalQuery);
 
   const latencyMs = Date.now() - startTime;
-  emitTraceStep(state.conversationId, `Intent Classified: Required Tools [${selectedTools.join(', ')}]`, undefined, 'completed', { selectedTools }, undefined, latencyMs);
+  emitTraceStep(
+    state.conversationId,
+    `Tools Selected: [${selectedTools.join(', ')}] | Time Scope: ${timeScope.toUpperCase()}`,
+    undefined,
+    'completed',
+    { selectedTools, timeScope },
+    undefined,
+    latencyMs
+  );
 
   return {
     selectedTools,
@@ -76,7 +93,7 @@ async function analyzeQueryNode(state: AgentState): Promise<Partial<AgentState>>
 }
 
 /**
- * NODE 2: Execute Selected Tools
+ * NODE 2: Execute Knowledge Retrieval & Tools
  */
 async function executeToolsNode(state: AgentState): Promise<Partial<AgentState>> {
   const toolCallsLog: ToolExecutionRecord[] = [...state.toolCallsLog];
@@ -86,12 +103,48 @@ async function executeToolsNode(state: AgentState): Promise<Partial<AgentState>>
   let retrievedDocuments = [...state.retrievedDocuments];
   let retrievedMemories = [...state.retrievedMemories];
 
+  const timeScope = parseTimeScope(state.originalQuery);
+
   for (const toolName of state.selectedTools) {
     const tStart = Date.now();
     emitTraceStep(state.conversationId, `Executing Tool: ${toolName}`, toolName, 'running', { query: state.originalQuery });
 
     try {
-      if (toolName === 'getLiveWeather') {
+      if (toolName === 'searchLiveKnowledgeBase') {
+        // Hybrid Freshness-Aware Vector & SQL Search over PostgreSQL knowledge_records
+        const records = await searchLiveKnowledgeBase(state.originalQuery, { timeScope, limit: 4 });
+        const latency = Date.now() - tStart;
+
+        toolCallsLog.push({
+          toolName,
+          input: { query: state.originalQuery, timeScope },
+          output: { foundRecords: records.length, records },
+          latencyMs: latency,
+          status: 'success',
+        });
+
+        for (const rec of records) {
+          const freshTag = rec.isFresh ? '🟢 FRESH' : '🟡 HISTORICAL';
+          evidence.push(
+            `LIVE KNOWLEDGE LAYER [${freshTag} - ${rec.ageString}] (${rec.source}): ${rec.content} (Hybrid Score: ${rec.hybridScore})`
+          );
+          citations.push({
+            source: `${rec.source} (${rec.ageString})`,
+            type: 'Live API',
+            details: rec.content,
+          });
+        }
+
+        emitTraceStep(
+          state.conversationId,
+          `✓ Hybrid Live Knowledge Retrieved (${records.length} records, Top Score: ${records[0]?.hybridScore || 0})`,
+          toolName,
+          'completed',
+          { query: state.originalQuery, timeScope },
+          { count: records.length, records },
+          latency
+        );
+      } else if (toolName === 'getLiveWeather') {
         const locMatch = state.originalQuery.match(/in ([a-zA-Z\s]+)/i);
         const targetLoc = locMatch ? locMatch[1].trim() : 'Delhi';
         const weather = await getLiveWeather(targetLoc);
@@ -106,7 +159,9 @@ async function executeToolsNode(state: AgentState): Promise<Partial<AgentState>>
           status: 'success',
         });
 
-        evidence.push(`CURRENT WEATHER DATA (${weather.location}): ${weather.condition}, ${weather.temperatureC}°C, Humidity ${weather.humidity}%, Rain probability ${weather.precipitationProb}%. ${weather.advisoryAlert || ''}`);
+        evidence.push(
+          `LIVE API FEED (${weather.location}): ${weather.condition}, ${weather.temperatureC}°C, Humidity ${weather.humidity}%, Rain probability ${weather.precipitationProb}%. ${weather.advisoryAlert || ''}`
+        );
 
         citations.push({
           source: weather.source,
@@ -114,21 +169,21 @@ async function executeToolsNode(state: AgentState): Promise<Partial<AgentState>>
           details: `${weather.location}: ${weather.condition}, ${weather.temperatureC}°C`,
         });
 
-        emitTraceStep(state.conversationId, `✓ Live Weather API Checked (${weather.location})`, toolName, 'completed', { location: targetLoc }, weather, latency);
+        emitTraceStep(state.conversationId, `✓ Live Weather Checked (${weather.location})`, toolName, 'completed', { location: targetLoc }, weather, latency);
       } else if (toolName === 'getGovernmentData') {
-        const govData = await getGovernmentData('Flood & Transit Alert', 'Delhi');
+        const govData = await getGovernmentData('Flood & Transit Advisory', 'Delhi');
         liveData.government = govData;
         const latency = Date.now() - tStart;
 
         toolCallsLog.push({
           toolName,
-          input: { topic: 'Flood & Transit Alert' },
+          input: { topic: 'Flood & Transit Advisory' },
           output: govData,
           latencyMs: latency,
           status: 'success',
         });
 
-        evidence.push(`GOVERNMENT ADVISORY (${govData.issuingAuthority}): ${govData.summary} Bulletins: ${govData.bulletins.join(' ')}`);
+        evidence.push(`GOVERNMENT ADVISORY BULLETIN (${govData.issuingAuthority}): ${govData.summary} Directives: ${govData.bulletins.join(' ')}`);
 
         citations.push({
           source: govData.source,
@@ -136,7 +191,7 @@ async function executeToolsNode(state: AgentState): Promise<Partial<AgentState>>
           details: govData.summary,
         });
 
-        emitTraceStep(state.conversationId, `✓ Government Advisory Checked`, toolName, 'completed', { topic: 'Flood & Transit' }, govData, latency);
+        emitTraceStep(state.conversationId, `✓ Government Advisory Bulletin Checked`, toolName, 'completed', { topic: 'Flood & Transit' }, govData, latency);
       } else if (toolName === 'searchKnowledgeBase') {
         const docs = await searchKnowledgeBase(state.originalQuery, 3);
         retrievedDocuments = docs;
@@ -151,7 +206,7 @@ async function executeToolsNode(state: AgentState): Promise<Partial<AgentState>>
         });
 
         for (const doc of docs) {
-          evidence.push(`KNOWLEDGE BASE DOCUMENT (${doc.documentTitle}, Pg ${doc.pageNumber}): ${doc.content}`);
+          evidence.push(`STATIC KNOWLEDGE DOCUMENT (${doc.documentTitle}, Pg ${doc.pageNumber}): ${doc.content}`);
           citations.push({
             source: doc.documentTitle,
             type: 'Document',
@@ -160,7 +215,7 @@ async function executeToolsNode(state: AgentState): Promise<Partial<AgentState>>
           });
         }
 
-        emitTraceStep(state.conversationId, `✓ RAG Vector Search (${docs.length} chunks retrieved)`, toolName, 'completed', { query: state.originalQuery }, { count: docs.length }, latency);
+        emitTraceStep(state.conversationId, `✓ Static Document Vector Search (${docs.length} chunks)`, toolName, 'completed', { query: state.originalQuery }, { count: docs.length }, latency);
       } else if (toolName === 'searchMemory') {
         const memories = await searchMemory(state.originalQuery, 3);
         retrievedMemories = memories;
@@ -183,7 +238,7 @@ async function executeToolsNode(state: AgentState): Promise<Partial<AgentState>>
           });
         }
 
-        emitTraceStep(state.conversationId, `✓ Long-Term Memory Lookup (${memories.length} memories retrieved)`, toolName, 'completed', { query: state.originalQuery }, { count: memories.length }, latency);
+        emitTraceStep(state.conversationId, `✓ Long-Term Memory Lookup (${memories.length} memories)`, toolName, 'completed', { query: state.originalQuery }, { count: memories.length }, latency);
       }
     } catch (err: any) {
       console.error(`Tool error [${toolName}]:`, err);
@@ -212,7 +267,7 @@ async function executeToolsNode(state: AgentState): Promise<Partial<AgentState>>
  */
 async function evaluateEvidenceNode(state: AgentState): Promise<Partial<AgentState>> {
   const startTime = Date.now();
-  emitTraceStep(state.conversationId, 'Evaluating Retrieved Evidence Sufficiency', undefined, 'running');
+  emitTraceStep(state.conversationId, 'Evaluating Retrieved Evidence Sufficiency & Freshness', undefined, 'running');
 
   const hasEvidence = state.evidence.length > 0;
   const needsMoreInfo = !hasEvidence && state.iterations < 2;
@@ -220,7 +275,7 @@ async function evaluateEvidenceNode(state: AgentState): Promise<Partial<AgentSta
   const latencyMs = Date.now() - startTime;
   emitTraceStep(
     state.conversationId,
-    hasEvidence ? '✓ Evidence Evaluation Complete: Sufficient Context' : '⚠️ Evidence Incomplete',
+    hasEvidence ? '✓ Evidence Evaluation Complete: Sufficient Context' : '⚠️ Context Incomplete',
     undefined,
     'completed',
     { totalEvidenceItems: state.evidence.length },
@@ -240,17 +295,17 @@ async function synthesizeAnswerNode(state: AgentState): Promise<Partial<AgentSta
   const startTime = Date.now();
   emitTraceStep(state.conversationId, 'Synthesizing Grounded Answer & Citations', undefined, 'running');
 
-  const systemPrompt = `You are Veridex, an Agentic Intelligence System with access to Live APIs, Vector RAG Knowledge Base, and User Long-Term Memory.
+  const systemPrompt = `You are Veridex, an Agentic Intelligence System operating over a Continuously Updated Live Knowledge Layer (IMD weather feeds, data.gov.in datasets, NDMA guidelines) and User Long-Term Memory.
 Answer the user's question accurately using ONLY the retrieved evidence below.
 
 CRITICAL GROUNDING RULES:
 1. Clearly distinguish between:
-   - CURRENT DATA: Live API information (weather, government advisories).
-   - HISTORICAL KNOWLEDGE: Retrieved documents from RAG knowledge base.
-   - USER MEMORY: User's saved preferences or habits.
+   - LIVE KNOWLEDGE LAYER: Ingested government API feeds and datasets (include freshness tags like "Updated 10m ago").
+   - STATIC KNOWLEDGE: Uploaded PDF/TXT documents.
+   - USER MEMORY: Saved user travel or communication preferences.
 2. Do NOT present user memory as an external fact.
 3. Attach clear source citations at the end of factual recommendations.
-4. If evidence is empty, state clearly that information is unavailable rather than inventing facts.
+4. If evidence is empty, state clearly that information is unavailable.
 
 RETRIEVED EVIDENCE:
 ${state.evidence.join('\n\n')}`;

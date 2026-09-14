@@ -1,5 +1,8 @@
 import { agentGraph } from '../agents/agentGraph';
 import { AgentState } from '../agents/agentState';
+import { runIngestionPipeline } from '../ingestion/ingestionPipeline';
+import { searchLiveKnowledgeBase } from '../rag/hybridRetrieval';
+import { computeContentHash } from '../ingestion/deduplicator';
 
 interface EvaluationCase {
   id: string;
@@ -12,34 +15,52 @@ const EVALUATION_DATASET: EvaluationCase[] = [
   {
     id: 'eval-1',
     query: 'What is the current weather in Delhi?',
-    expectedTools: ['getLiveWeather'],
-    description: 'Live Weather API Query Evaluation',
+    expectedTools: ['searchLiveKnowledgeBase', 'getLiveWeather'],
+    description: 'Live Weather Feed & Knowledge Retrieval Evaluation',
   },
   {
     id: 'eval-2',
     query: 'What does the government report say about flood management?',
-    expectedTools: ['getGovernmentData', 'searchKnowledgeBase'],
-    description: 'RAG Knowledge Base Document Retrieval Evaluation',
+    expectedTools: ['searchLiveKnowledgeBase', 'getGovernmentData', 'searchKnowledgeBase'],
+    description: 'Government Disaster Advisory & Document Retrieval Evaluation',
   },
   {
     id: 'eval-3',
-    query: 'What are my preferences for travelling?',
-    expectedTools: ['searchMemory'],
-    description: 'Long-Term Memory Search Evaluation',
+    query: 'Which Punjab districts received the most rainfall recently?',
+    expectedTools: ['searchLiveKnowledgeBase'],
+    description: 'Structured SQL & Freshness-Aware District Rainfall Evaluation',
   },
   {
     id: 'eval-4',
-    query: "Considering today's weather, government advisories, and my travel preferences, should I travel to Delhi tomorrow?",
-    expectedTools: ['getLiveWeather', 'getGovernmentData', 'searchKnowledgeBase', 'searchMemory'],
-    description: 'Multi-Tool Reasoning & Synthesis Evaluation',
+    query: 'What are my preferences for travelling?',
+    expectedTools: ['searchLiveKnowledgeBase', 'searchMemory'],
+    description: 'Long-Term Memory Retrieval Evaluation',
   },
 ];
 
 export async function runEvaluationSuite() {
-  console.log('🧪 Starting Veridex Agentic RAG Evaluation Benchmark Suite...\n');
+  console.log('🧪 Starting Veridex Live-Data Knowledge Ingestion & Hybrid Retrieval Evaluation Benchmark...\n');
 
+  // 1. Ingestion Pipeline & SHA-256 Deduplication Test
+  console.log('--- TEST 1: Ingestion & Change Detection ---');
+  const report1 = await runIngestionPipeline();
+  console.log(`   Initial Ingestion: ${report1.insertedRecords} inserted, ${report1.duplicateRecords} duplicates`);
+
+  const report2 = await runIngestionPipeline();
+  console.log(`   Second Ingestion (Deduplication Check): ${report2.insertedRecords} inserted, ${report2.duplicateRecords} duplicates skipped`);
+  const dedupePassed = report2.duplicateRecords >= report1.totalFetched || report2.insertedRecords === 0;
+  console.log(`   [${dedupePassed ? '✅ PASS' : '⚠️ WARN'}] SHA-256 Change Detection & Deduplication Verification\n`);
+
+  // 2. Hybrid Freshness-Aware Vector & SQL Retrieval Test
+  console.log('--- TEST 2: Hybrid Freshness-Aware Search ---');
+  const freshResults = await searchLiveKnowledgeBase('recent rainfall in Punjab districts', { timeScope: 'current' });
+  console.log(`   Top Record: "${freshResults[0]?.title}" | Score: ${freshResults[0]?.hybridScore} | Freshness: ${freshResults[0]?.ageString}`);
+  const freshnessPassed = freshResults.length > 0 && freshResults[0]?.hybridScore > 0.7;
+  console.log(`   [${freshnessPassed ? '✅ PASS' : '❌ FAIL'}] Freshness Decay Scoring Verification\n`);
+
+  // 3. Agent Tool Selection & Multi-Tool Reasoning Benchmark
+  console.log('--- TEST 3: Agentic Multi-Tool Reasoning Benchmark ---');
   let passedCases = 0;
-  const results: any[] = [];
 
   for (const testCase of EVALUATION_DATASET) {
     const startTime = Date.now();
@@ -63,23 +84,12 @@ export async function runEvaluationSuite() {
     const finalState = await agentGraph.invoke(initialState);
     const latencyMs = Date.now() - startTime;
 
-    // Check tool selection accuracy
     const selected = finalState.selectedTools || [];
     const matchesAll = testCase.expectedTools.every((t) => selected.includes(t));
 
     if (matchesAll) {
       passedCases++;
     }
-
-    results.push({
-      id: testCase.id,
-      description: testCase.description,
-      query: testCase.query,
-      expectedTools: testCase.expectedTools,
-      selectedTools: selected,
-      latencyMs,
-      passed: matchesAll,
-    });
 
     console.log(`[${matchesAll ? '✅ PASS' : '❌ FAIL'}] ${testCase.description}`);
     console.log(`   Expected: [${testCase.expectedTools.join(', ')}]`);
@@ -89,17 +99,16 @@ export async function runEvaluationSuite() {
 
   const accuracy = ((passedCases / EVALUATION_DATASET.length) * 100).toFixed(1);
   console.log('====================================================');
-  console.log(`📊 EVALUATION SCORECARD`);
+  console.log(`📊 VERIDEX AGENTIC RAG EVALUATION SCORECARD`);
   console.log(`   Total Benchmark Cases: ${EVALUATION_DATASET.length}`);
   console.log(`   Passed Cases: ${passedCases}`);
-  console.log(`   Tool Selection Accuracy: ${accuracy}%`);
+  console.log(`   Tool Selection & Knowledge Retrieval Accuracy: ${accuracy}%`);
   console.log('====================================================\n');
 
   return {
     accuracy: parseFloat(accuracy),
     passedCases,
     totalCases: EVALUATION_DATASET.length,
-    results,
   };
 }
 

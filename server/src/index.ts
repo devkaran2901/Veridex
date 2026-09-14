@@ -4,12 +4,14 @@ import cors from 'cors';
 import { Server as SocketIOServer } from 'socket.io';
 import { config } from './config/env';
 import { initDatabase } from './database/initDb';
+import { seedInitialKnowledgeIfNeeded } from './ingestion/ingestionPipeline';
 
 import healthRoutes from './routes/health';
 import chatRoutes from './routes/chat';
 import documentRoutes from './routes/documents';
 import memoryRoutes from './routes/memories';
 import agentRunRoutes from './routes/agentRuns';
+import ingestionRoutes from './routes/ingestion';
 
 const app = express();
 const server = http.createServer(app);
@@ -31,6 +33,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/memories', memoryRoutes);
 app.use('/api/agent-runs', agentRunRoutes);
+app.use('/api/ingestion', ingestionRoutes);
 
 // Socket.IO event handling
 io.on('connection', (socket) => {
@@ -49,10 +52,12 @@ io.on('connection', (socket) => {
 // Startup sequence
 async function startServer() {
   try {
-    // Attempt database initialization
-    await initDatabase().catch((err) => {
-      console.warn('⚠️ DB init failed on startup, server will proceed. Ensure Docker is running:', err.message);
-    });
+    // Database initialization & Knowledge seed
+    await initDatabase()
+      .then(() => seedInitialKnowledgeIfNeeded())
+      .catch((err) => {
+        console.warn('⚠️ DB init failed on startup, server will proceed. Ensure Docker is running:', err.message);
+      });
 
     server.on('error', (err: any) => {
       if (err.code === 'EADDRINUSE') {

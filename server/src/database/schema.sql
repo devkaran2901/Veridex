@@ -33,7 +33,49 @@ CREATE TABLE IF NOT EXISTS messages (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Documents table (Knowledge Base)
+-- Government Dataset Registry Table
+CREATE TABLE IF NOT EXISTS knowledge_datasets (
+    id VARCHAR(100) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    source VARCHAR(100) NOT NULL,
+    description TEXT,
+    category VARCHAR(100) DEFAULT 'general',
+    last_synced_at TIMESTAMP WITH TIME ZONE,
+    record_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Canonical Unified Live & Static Knowledge Records Table
+CREATE TABLE IF NOT EXISTS knowledge_records (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    source VARCHAR(100) NOT NULL,
+    source_type VARCHAR(50) NOT NULL CHECK (source_type IN ('api_feed', 'dataset', 'document', 'web')),
+    dataset_id VARCHAR(100) REFERENCES knowledge_datasets(id) ON DELETE SET NULL,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    structured_data JSONB DEFAULT '{}'::jsonb,
+    metadata JSONB DEFAULT '{}'::jsonb,
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    valid_from TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    valid_until TIMESTAMP WITH TIME ZONE,
+    version INTEGER DEFAULT 1,
+    content_hash VARCHAR(64) NOT NULL,
+    embedding vector(1536),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Vector HNSW Index on knowledge_records
+CREATE INDEX IF NOT EXISTS knowledge_records_embedding_idx 
+ON knowledge_records USING hnsw (embedding vector_cosine_ops);
+
+-- B-Tree Indexes on knowledge_records
+CREATE INDEX IF NOT EXISTS knowledge_records_content_hash_idx ON knowledge_records(content_hash);
+CREATE INDEX IF NOT EXISTS knowledge_records_dataset_id_idx ON knowledge_records(dataset_id);
+CREATE INDEX IF NOT EXISTS knowledge_records_source_idx ON knowledge_records(source);
+CREATE INDEX IF NOT EXISTS knowledge_records_valid_from_idx ON knowledge_records(valid_from);
+
+-- Documents table (Static Knowledge Base Files)
 CREATE TABLE IF NOT EXISTS documents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
