@@ -5,6 +5,15 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 dotenv.config();
 
+const encryptionKey = process.env.CREDENTIAL_ENCRYPTION_KEY;
+if (!encryptionKey) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('FATAL SECURITY ERROR: CREDENTIAL_ENCRYPTION_KEY must be set in production!');
+  } else {
+    console.warn('⚠️ SECURITY NOTICE: Using default development CREDENTIAL_ENCRYPTION_KEY. Set CREDENTIAL_ENCRYPTION_KEY in .env for production.');
+  }
+}
+
 export const config = {
   port: parseInt(process.env.PORT || '5000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -24,6 +33,6 @@ export const config = {
   dataMode: ((process.env.DATA_MODE || '').toLowerCase() === 'demo' || process.env.DEMO_MODE === 'true') ? 'demo' as const : 'live' as const,
   demoMode: (process.env.DATA_MODE || '').toLowerCase() === 'demo' || process.env.DEMO_MODE === 'true',
   ingestionIntervalMinutes: parseInt(process.env.INGESTION_INTERVAL_MINUTES || '10', 10),
-  credentialEncryptionKey: process.env.CREDENTIAL_ENCRYPTION_KEY || 'veridex-default-secret-key-32chars!!',
+  credentialEncryptionKey: encryptionKey || 'veridex-default-secret-key-32chars!!',
 };
 

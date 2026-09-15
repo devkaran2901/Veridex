@@ -235,30 +235,7 @@ export class DataGovProvider implements GovernmentDataProvider {
 
     if (!apiKey) {
       console.warn(`⚠️ DATAGOV_API_KEY is not configured in .env. Skipping live API fetch for dataset ${datasetId}.`);
-      return [
-        {
-          source: this.source,
-          sourceType: 'dataset',
-          datasetId: datasetId,
-          title: `data.gov.in Open Catalog Metadata - ${datasetId}`,
-          content: `data.gov.in Dataset [${datasetId}] is registered in the official open government catalog. Set DATAGOV_API_KEY in .env to pull live real-time API records directly into PostgreSQL knowledge_records.`,
-          structuredData: {
-            datasetId,
-            status: 'CATALOG_INDEXED_API_KEY_REQUIRED',
-            apiKeyConfigured: false,
-          },
-          metadata: {
-            issuingAuthority: 'Open Government Data Portal India',
-            publisher: this.publisher,
-            sourceUrl: 'https://data.gov.in',
-          },
-          timestamp: now,
-          observedAt: now,
-          retrievedAt: now,
-          validFrom: now,
-          isMock: false,
-        },
-      ];
+      return []; // Rule 7: Do not insert fake error text into knowledge_records
     }
 
     // Connect to real data.gov.in endpoint with DATAGOV_API_KEY
@@ -615,6 +592,12 @@ if (config.dataMode === 'demo') {
  * Searches open dataset catalogs + user connected custom APIs, ranks candidates, and returns schema/metadata.
  */
 export async function discoverDatasets(queryText: string, userId?: string): Promise<DatasetMetadata[]> {
+  const qClean = queryText.toLowerCase().trim();
+  const casualPhrases = ['hey', 'hi', 'hello', 'thanks', 'good morning', 'good afternoon', 'good evening', 'how are you', 'sup', 'bye'];
+  if (qClean.length <= 3 || casualPhrases.includes(qClean)) {
+    return []; // Rule #10: Casual queries must not trigger dataset discovery
+  }
+
   const matched: DatasetMetadata[] = [];
   const seenIds = new Set<string>();
 

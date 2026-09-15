@@ -22,6 +22,7 @@ export interface ToolExecutionRecord {
 }
 
 export interface RetrievalPlan {
+  intent?: 'casual' | 'live_data_research' | 'document_research' | 'memory' | 'mixed' | 'unsupported_general';
   needsLiveKnowledge: boolean;
   needsStaticRag: boolean;
   needsMemory: boolean;
@@ -29,6 +30,8 @@ export interface RetrievalPlan {
   needsDatasetDiscovery: boolean;
   timeScope: 'current' | 'recent' | 'historical' | 'comparison';
   retrievalMode: 'semantic' | 'structured' | 'hybrid' | 'comparison';
+  datasetIds?: string[];
+  sourceIds?: string[];
   location?: string;
   topic?: string;
   structuredQueryParams?: {

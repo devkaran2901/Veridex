@@ -219,88 +219,107 @@ router.get('/', async (req, res) => {
   }
 });
 
+async function verifySourceOwnership(sourceId: string, userId: string): Promise<any> {
+  const dbRes = await query(`SELECT * FROM data_sources WHERE id = $1`, [sourceId]);
+  if (dbRes.rows.length === 0) {
+    const err: any = new Error('Data source not found');
+    err.status = 404;
+    throw err;
+  }
+  const source = dbRes.rows[0];
+  if (source.user_id && source.user_id !== userId) {
+    const err: any = new Error('Access denied: You do not own this data source');
+    err.status = 403;
+    throw err;
+  }
+  return source;
+}
+
 /**
  * GET /api/data-sources/:id
- * Get single data source details
+ * Get single data source details (enforces user ownership)
  */
 router.get('/:id', async (req, res) => {
   try {
-    const dbRes = await query(
-      `SELECT id, user_id, name, url, auth_type, auth_config, refresh_interval, status, last_fetched_at, last_success_at, last_error, schema, record_count, is_active, created_at, updated_at
-       FROM data_sources
-       WHERE id = $1`,
-      [req.params.id]
-    );
+    const userId = (req.query.userId as string) || DEFAULT_USER_ID;
+    const source = await verifySourceOwnership(req.params.id, userId);
 
-    if (dbRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Data source not found' });
-    }
-
-    const row = dbRes.rows[0];
     res.json({
-      ...row,
-      domain: new URL(row.url).hostname,
-      apiKey: row.auth_type !== 'none' ? '********' : null,
+      ...source,
+      domain: new URL(source.url).hostname,
+      apiKey: source.auth_type !== 'none' ? '********' : null,
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
 /**
  * POST /api/data-sources/:id/sync
- * Manually trigger ingestion sync for a data source
+ * Manually trigger ingestion sync for a data source (enforces user ownership)
  */
 router.post('/:id/sync', async (req, res) => {
   try {
+    const userId = (req.body?.userId as string) || (req.query?.userId as string) || DEFAULT_USER_ID;
+    await verifySourceOwnership(req.params.id, userId);
+
     const stats = await syncCustomDataSource(req.params.id);
     res.json({
       message: 'Sync completed successfully',
       stats,
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
 /**
  * POST /api/data-sources/:id/disable
- * Disable continuous ingestion for a data source
+ * Disable continuous ingestion for a data source (enforces user ownership)
  */
 router.post('/:id/disable', async (req, res) => {
   try {
+    const userId = (req.body?.userId as string) || (req.query?.userId as string) || DEFAULT_USER_ID;
+    await verifySourceOwnership(req.params.id, userId);
+
     await query(`UPDATE data_sources SET status = 'DISABLED', is_active = FALSE WHERE id = $1`, [req.params.id]);
     res.json({ message: 'Data source disabled' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
 /**
  * POST /api/data-sources/:id/enable
- * Enable continuous ingestion for a data source
+ * Enable continuous ingestion for a data source (enforces user ownership)
  */
 router.post('/:id/enable', async (req, res) => {
   try {
+    const userId = (req.body?.userId as string) || (req.query?.userId as string) || DEFAULT_USER_ID;
+    await verifySourceOwnership(req.params.id, userId);
+
     await query(`UPDATE data_sources SET status = 'HEALTHY', is_active = TRUE WHERE id = $1`, [req.params.id]);
     // Trigger sync immediately on enable
     syncCustomDataSource(req.params.id).catch(() => {});
     res.json({ message: 'Data source enabled' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
 /**
  * DELETE /api/data-sources/:id
- * Delete data source and associated knowledge records
+ * Delete data source and associated knowledge records (enforces user ownership)
  */
 router.delete('/:id', async (req, res) => {
   try {
+    const userId = (req.query?.userId as string) || DEFAULT_USER_ID;
+    await verifySourceOwnership(req.params.id, userId);
+
     await query(`DELETE FROM data_sources WHERE id = $1`, [req.params.id]);
     res.json({ message: 'Data source and associated records deleted' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 

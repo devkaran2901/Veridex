@@ -39,17 +39,98 @@ function emitTraceStep(
 }
 
 /**
+ * First-Stage Query Intent & Domain Classifier (Rules #2, #3, #4, #5)
+ */
+export function classifyQueryIntent(queryText: string): 'casual' | 'live_data_research' | 'document_research' | 'memory' | 'mixed' | 'unsupported_general' {
+  const q = queryText.toLowerCase().trim().replace(/[?!.,]/g, '');
+
+  // 1. Casual Greetings & Basic Conversation
+  const casualPhrases = [
+    'hey', 'hi', 'hello', 'hey there', 'hi there', 'hello there',
+    'good morning', 'good afternoon', 'good evening', 'good night',
+    'thanks', 'thank you', 'thanks a lot', 'how are you', 'how are you doing',
+    'what\'s up', 'whats up', 'sup', 'who are you', 'what are you', 'help',
+    'bye', 'goodbye', 'see ya', 'cool', 'nice', 'awesome', 'ok', 'okay'
+  ];
+  if (casualPhrases.includes(q)) {
+    return 'casual';
+  }
+
+  // 2. Personal Context / Memory Queries
+  const isMemory = q.includes('my ') || q.includes('preference') || q.includes('travel preference') || q.includes('my habits');
+
+  // 3. Live Research Queries (weather, rainfall, statistics, data.gov.in, custom APIs)
+  const liveResearchKeywords = [
+    'weather', 'rain', 'rainfall', 'temp', 'temperature', 'climate', 'forecast',
+    'precipitation', 'humidity', 'wind', 'district', 'punjab', 'delhi', 'shimla',
+    'buhana', 'rajasthan', 'data.gov', 'dataset', 'datasets', 'crop', 'agriculture',
+    'yield', 'production', 'api', 'connected api', 'statistics', 'waterlogging',
+    'advisory', 'changed', 'since yesterday'
+  ];
+  const isLive = liveResearchKeywords.some((k) => q.includes(k));
+
+  // 4. Document / Policy Research Queries
+  const isDocument = q.includes('pdf') || q.includes('document') || q.includes('policy') || q.includes('guidelines') || q.includes('report') || q.includes('handbook');
+
+  if (isMemory && isLive) return 'mixed';
+  if (isMemory) return 'memory';
+  if (isLive) return 'live_data_research';
+  if (isDocument) return 'document_research';
+
+  // 5. General Trivia / Unsupported Queries
+  const triviaKeywords = ['capital of', 'who is elon', 'meaning of', 'stand for', 'gta', 'joke', 'tell me a joke'];
+  if (triviaKeywords.some((k) => q.includes(k))) {
+    return 'unsupported_general';
+  }
+
+  return 'live_data_research';
+}
+
+/**
+ * Hard Safety Domain Gate: Enforces that searchLiveKnowledgeBase is ONLY called for valid live research queries
+ */
+export function isLiveResearchQuery(queryText: string, plan?: RetrievalPlan): boolean {
+  if (plan?.intent === 'casual') return false;
+
+  const q = queryText.toLowerCase();
+  const liveResearchKeywords = [
+    'weather', 'rain', 'rainfall', 'temp', 'temperature', 'climate', 'forecast',
+    'precipitation', 'humidity', 'wind', 'district', 'punjab', 'delhi', 'shimla',
+    'buhana', 'rajasthan', 'data.gov', 'dataset', 'datasets', 'crop', 'agriculture',
+    'yield', 'production', 'api', 'connected api', 'statistics', 'waterlogging',
+    'advisory', 'changed', 'since yesterday'
+  ];
+  return liveResearchKeywords.some((k) => q.includes(k));
+}
+
+/**
  * LLM Structured Retrieval Planner (FIX #5 & FIX #6 & FIX #8)
  */
 export async function generateRetrievalPlan(queryText: string): Promise<RetrievalPlan> {
   const detectedScope = parseTimeScope(queryText);
   const q = queryText.toLowerCase();
+  const intent = classifyQueryIntent(queryText);
+
+  // Casual Query Fast-Path
+  if (intent === 'casual') {
+    return {
+      intent: 'casual',
+      needsLiveKnowledge: false,
+      needsStaticRag: false,
+      needsMemory: false,
+      needsStructuredQuery: false,
+      needsDatasetDiscovery: false,
+      timeScope: 'current',
+      retrievalMode: 'semantic',
+      rationale: 'Casual message detected. Bypassing knowledge retrieval.',
+    };
+  }
 
   const plannerSystemPrompt = `You are the Retrieval Planner for Veridex, an Agentic RAG System over a Continuously Updated Live Knowledge Layer and User Long-Term Memory.
 Analyze the user's query and generate a structured JSON retrieval plan specifying which knowledge layers must be searched.
 
 ROUTING & INTENT RULES:
-1. "needsLiveKnowledge": Set TRUE for ALL queries asking about weather, rainfall, precipitation, climate, temperature, district statistics, advisories, or government observations — REGARDLESS of timeScope (whether current, recent, historical, or comparison), because all observational data is indexed in the Knowledge Layer (knowledge_records).
+1. "needsLiveKnowledge": Set TRUE ONLY for queries asking about weather, rainfall, precipitation, climate, temperature, district statistics, advisories, or government observations.
 2. "needsStaticRag": Set true if query asks about general government guidelines, PDF policy reports, or static documentation.
 3. "needsMemory": Set true ONLY IF the query asks about user preferences, personal habits, travel choices ("my preferences", "should I travel given my preferences", etc.). Do NOT enable for generic queries like "What is today's rainfall?".
 4. "needsDatasetDiscovery": Set true if query asks about available government datasets, statistics, or open catalog data.
@@ -79,37 +160,40 @@ Output ONLY valid JSON matching this schema:
     const jsonMatch = response.content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
-      return {
-        needsLiveKnowledge: Boolean(parsed.needsLiveKnowledge),
+      const plan: RetrievalPlan = {
+        intent,
+        needsLiveKnowledge: Boolean(parsed.needsLiveKnowledge) && isLiveResearchQuery(queryText),
         needsStaticRag: Boolean(parsed.needsStaticRag),
         needsMemory: Boolean(parsed.needsMemory),
         needsStructuredQuery: Boolean(parsed.needsStructuredQuery),
-        needsDatasetDiscovery: Boolean(parsed.needsDatasetDiscovery),
+        needsDatasetDiscovery: Boolean(parsed.needsDatasetDiscovery) && isLiveResearchQuery(queryText),
         timeScope: parsed.timeScope || detectedScope,
         retrievalMode: parsed.retrievalMode || 'hybrid',
         location: parsed.location || undefined,
         topic: parsed.topic || undefined,
         rationale: parsed.rationale || 'LLM Structured Plan generated.',
       };
+      return plan;
     }
   } catch (err) {
     console.warn('⚠️ LLM Retrieval Planner JSON parsing failed, using deterministic fallback plan:', err);
   }
 
-  // Deterministic Fallback Plan Generator
-  const isMemoryQuery = q.includes('my') || q.includes('preference') || q.includes('travel') || q.includes('should i');
-  const isWeatherQuery = q.includes('weather') || q.includes('rain') || q.includes('temp') || q.includes('forecast') || q.includes('district') || q.includes('punjab');
+  // Deterministic Safety Fallback Plan Generator (Rule #1, Rule #5, Rule #6)
+  const isMemoryQuery = intent === 'memory' || intent === 'mixed';
+  const isLiveQuery = isLiveResearchQuery(queryText);
   const isGovQuery = q.includes('government') || q.includes('advisory') || q.includes('recommend') || q.includes('guidance') || q.includes('report') || q.includes('pdf');
 
   return {
-    needsLiveKnowledge: isWeatherQuery || !isMemoryQuery,
+    intent,
+    needsLiveKnowledge: isLiveQuery,
     needsStaticRag: isGovQuery || q.includes('guidance') || q.includes('pdf'),
     needsMemory: isMemoryQuery,
     needsStructuredQuery: q.includes('district') || q.includes('highest') || q.includes('most'),
-    needsDatasetDiscovery: isWeatherQuery || isGovQuery,
+    needsDatasetDiscovery: isLiveQuery && (q.includes('dataset') || q.includes('data.gov')),
     timeScope: detectedScope,
     retrievalMode: detectedScope === 'comparison' ? 'comparison' : q.includes('highest') ? 'structured' : 'hybrid',
-    rationale: 'Deterministic fallback retrieval plan.',
+    rationale: 'Deterministic safety fallback retrieval plan.',
   };
 }
 
@@ -186,6 +270,7 @@ async function executeRetrievalNode(state: AgentState): Promise<Partial<AgentSta
   let retrievedMemories = [...state.retrievedMemories];
 
   const plan = state.retrievalPlan || await generateRetrievalPlan(state.originalQuery);
+  const targetDatasetIds = plan.datasetIds || state.discoveredDatasets.map((d) => d.id);
 
   // 1. Live Knowledge Layer Search (PostgreSQL + pgvector / Structured SQL)
   if (plan.needsLiveKnowledge) {
@@ -196,6 +281,7 @@ async function executeRetrievalNode(state: AgentState): Promise<Partial<AgentSta
       const records = await searchLiveKnowledgeBase(state.originalQuery, {
         timeScope: plan.timeScope,
         mode: plan.retrievalMode,
+        datasetIds: targetDatasetIds.length > 0 ? targetDatasetIds : undefined,
         limit: 4,
         userId: state.userId,
       });
@@ -203,7 +289,7 @@ async function executeRetrievalNode(state: AgentState): Promise<Partial<AgentSta
 
       toolCallsLog.push({
         toolName: 'searchLiveKnowledgeBase',
-        input: { query: state.originalQuery, timeScope: plan.timeScope, mode: plan.retrievalMode },
+        input: { query: state.originalQuery, timeScope: plan.timeScope, mode: plan.retrievalMode, datasetIds: targetDatasetIds },
         output: { foundRecords: records.length, records },
         latencyMs: latency,
         status: 'success',
@@ -230,7 +316,7 @@ async function executeRetrievalNode(state: AgentState): Promise<Partial<AgentSta
         `✓ Live Knowledge Retrieved (${records.length} records)`,
         'searchLiveKnowledgeBase',
         'completed',
-        { query: state.originalQuery, plan },
+        { query: state.originalQuery, plan, targetDatasetIds },
         { recordCount: records.length, records },
         latency
       );
@@ -332,7 +418,7 @@ async function executeRetrievalNode(state: AgentState): Promise<Partial<AgentSta
 }
 
 /**
- * NODE 4: Evaluate Evidence Sufficiency (FIX #24)
+ * NODE 4: Evaluate Evidence Sufficiency & Quality (Rule #16)
  */
 async function evaluateEvidenceNode(state: AgentState): Promise<Partial<AgentState>> {
   const startTime = Date.now();
@@ -340,16 +426,44 @@ async function evaluateEvidenceNode(state: AgentState): Promise<Partial<AgentSta
 
   const hasEvidence = state.evidence.length > 0;
   const currentIterations = (state.iterations || 0) + 1;
-  const needsMoreInfo = !hasEvidence && currentIterations < 2;
+
+  // Perform multi-metric quality assessment on evidence
+  let avgRelevance = 0;
+  let avgFreshness = 0;
+  let avgSourceQuality = 1.0;
+
+  if (hasEvidence) {
+    const scoreMatches = state.evidence.map((e) => {
+      const match = e.match(/Hybrid Score: ([\d.]+)/);
+      return match ? parseFloat(match[1]) : 0.75;
+    });
+    avgRelevance = scoreMatches.length > 0 ? scoreMatches.reduce((a, b) => a + b, 0) / scoreMatches.length : 0.75;
+
+    const freshCount = state.evidence.filter((e) => e.includes('🟢 FRESH')).length;
+    avgFreshness = freshCount / state.evidence.length;
+  }
+
+  const isSufficient = hasEvidence && avgRelevance >= 0.40;
+  const needsMoreInfo = !isSufficient && currentIterations < 2;
+
+  const evaluationReport = {
+    sufficient: isSufficient,
+    relevance: parseFloat(avgRelevance.toFixed(2)),
+    freshness: parseFloat(avgFreshness.toFixed(2)),
+    sourceQuality: avgSourceQuality,
+    reason: isSufficient
+      ? 'Retrieved evidence directly grounds the user query.'
+      : 'Evidence insufficient or unavailable in connected knowledge sources.',
+  };
 
   const latencyMs = Date.now() - startTime;
   emitTraceStep(
     state.conversationId,
-    hasEvidence ? '✓ Evidence Sufficiency Confirmed' : '⚠️ Evidence Incomplete (Refinement Triggered)',
+    isSufficient ? '✓ Evidence Sufficiency Confirmed' : '⚠️ Evidence Incomplete (Refinement Triggered)',
     undefined,
     'completed',
     { totalEvidenceItems: state.evidence.length, iterations: currentIterations },
-    { needsMoreInfo },
+    evaluationReport,
     latencyMs
   );
 
@@ -405,6 +519,17 @@ function shouldRefuseAnswer(queryText: string, evidence: string[], responseConte
 async function synthesizeAnswerNode(state: AgentState): Promise<Partial<AgentState>> {
   const startTime = Date.now();
   const STANDARD_REFUSAL = 'The requested live government data or document is currently unavailable in the indexed knowledge layer.';
+
+  // Casual Greeting Fast-Path Response (Rule #3, Rule #21)
+  if (state.retrievalPlan?.intent === 'casual') {
+    const casualAnswer = 'Hey! What would you like to research today?';
+    const latency = Date.now() - startTime;
+    emitTraceStep(state.conversationId, '✓ Casual Greeting Responded', undefined, 'completed', undefined, { answerLength: casualAnswer.length }, latency);
+    return {
+      finalAnswer: casualAnswer,
+      citations: [],
+    };
+  }
 
   emitTraceStep(state.conversationId, 'Synthesizing Grounded Answer & Source Citations', undefined, 'running');
 

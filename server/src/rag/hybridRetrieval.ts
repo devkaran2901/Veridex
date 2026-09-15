@@ -9,6 +9,9 @@ export interface RetrievalOptions {
   limit?: number;
   timeScope?: TimeScope;
   mode?: 'semantic' | 'structured' | 'hybrid' | 'comparison';
+  datasetIds?: string[];
+  sourceIds?: string[];
+  location?: string;
   districtFilter?: string;
   sourceFilter?: string;
   userId?: string;
@@ -138,14 +141,23 @@ export async function searchLiveKnowledgeBase(
   const timeScope = options.timeScope || parseTimeScope(queryText);
   const q = queryText.toLowerCase();
 
+  // Extract location if present in query or options
+  let targetLocation = options.location;
+  if (!targetLocation) {
+    const knownLocations = ['delhi', 'punjab', 'shimla', 'buhana', 'rajasthan', 'ludhiana', 'bhatinda', 'amritsar', 'mumbai'];
+    for (const loc of knownLocations) {
+      if (q.includes(loc)) {
+        targetLocation = loc;
+        break;
+      }
+    }
+  }
+
   // If query is asking about live weather, trigger real-time weather tool fetch & ingestion first
   if (q.includes('weather') || q.includes('rain') || q.includes('temperature') || q.includes('climate')) {
     try {
-      const locClean = queryText
-        .replace(/weather|temperature|rain|forecast|today|now|in|for|at/gi, '')
-        .trim();
-      const targetLocation = locClean.length > 2 ? locClean : 'Buhana, Rajasthan';
-      await getLiveWeather(targetLocation);
+      const fetchLoc = targetLocation || 'Buhana, Rajasthan';
+      await getLiveWeather(fetchLoc);
     } catch (err) {
       // Catch weather fetch errors silently
     }
@@ -166,6 +178,30 @@ export async function searchLiveKnowledgeBase(
     const queryEmbedding = await generateEmbedding(queryText);
     const vectorSqlStr = `[${queryEmbedding.join(',')}]`;
 
+    const queryParams: any[] = [vectorSqlStr, limit * 4];
+    let whereClauses = 'WHERE 1=1';
+
+    if (targetLocation) {
+      queryParams.push(`%${targetLocation}%`);
+      const locIdx = queryParams.length;
+      whereClauses += ` AND (title ILIKE $${locIdx} OR content ILIKE $${locIdx} OR structured_data->>'location' ILIKE $${locIdx} OR metadata->>'region' ILIKE $${locIdx})`;
+    }
+
+    if (options.datasetIds && options.datasetIds.length > 0) {
+      queryParams.push(options.datasetIds);
+      whereClauses += ` AND dataset_id = ANY($${queryParams.length})`;
+    }
+
+    if (options.sourceIds && options.sourceIds.length > 0) {
+      queryParams.push(options.sourceIds);
+      whereClauses += ` AND source_id = ANY($${queryParams.length})`;
+    }
+
+    if (options.userId) {
+      queryParams.push(options.userId);
+      whereClauses += ` AND (user_id = $${queryParams.length} OR user_id IS NULL)`;
+    }
+
     // 1. Comparison Mode: Fetch current version records + historical/previous version records
     if (isComparisonQuery) {
       const sqlComparison = `
@@ -174,10 +210,11 @@ export async function searchLiveKnowledgeBase(
           valid_from, observed_at, retrieved_at, version,
           1 - (embedding <=> $1::vector) as vector_similarity
         FROM knowledge_records
+        ${whereClauses}
         ORDER BY version DESC, valid_from DESC
         LIMIT $2;
       `;
-      const compRes = await query(sqlComparison, [vectorSqlStr, limit * 3]);
+      const compRes = await query(sqlComparison, queryParams);
 
       if (compRes.rows.length === 0) {
         return config.dataMode === 'demo' ? getFallbackKnowledgeRecords(queryText, timeScope) : [];
@@ -214,6 +251,10 @@ export async function searchLiveKnowledgeBase(
     }
 
     // 2. Structured SQL or Semantic Hybrid Retrieval
+    const structuredClause = isStructuredQuery
+      ? "AND (structured_data IS NOT NULL AND structured_data != '{}'::jsonb)"
+      : '';
+
     const sql = `
       SELECT 
         id,
@@ -229,59 +270,57 @@ export async function searchLiveKnowledgeBase(
         retrieved_at,
         1 - (embedding <=> $1::vector) as vector_similarity
       FROM knowledge_records
-      WHERE 1=1
-      ${isStructuredQuery ? "AND (structured_data->>'rainfallMm') IS NOT NULL OR (structured_data->>'temperatureC') IS NOT NULL" : ''}
-      ORDER BY ${
-        isStructuredQuery
-          ? "COALESCE((structured_data->>'rainfallMm')::float, (structured_data->>'temperatureC')::float, 0) DESC, embedding <=> $1::vector ASC"
-          : "embedding <=> $1::vector ASC"
-      }
+      ${whereClauses}
+      ${structuredClause}
+      ORDER BY embedding <=> $1::vector ASC
       LIMIT $2;
     `;
 
-    const res = await query(sql, [vectorSqlStr, limit * 2]);
+    const res = await query(sql, queryParams);
 
     if (res.rows.length === 0) {
       return config.dataMode === 'demo' ? getFallbackKnowledgeRecords(queryText, timeScope) : [];
     }
 
     // 3. Score records combining Vector Similarity + Freshness Decay + Source Reliability
-    const scored: HybridKnowledgeRecordResult[] = res.rows.map((row: any) => {
-      const validFromDate = new Date(row.valid_from || row.observed_at || Date.now());
-      const vecSim = parseFloat((row.vector_similarity || 0.8).toFixed(4));
-      const freshness = computeFreshnessScore(validFromDate, timeScope);
-      const reliability = computeReliabilityScore(row.source, row.metadata || {});
+    const scored: HybridKnowledgeRecordResult[] = res.rows
+      .map((row: any) => {
+        const validFromDate = new Date(row.valid_from || row.observed_at || Date.now());
+        const vecSim = parseFloat((row.vector_similarity || 0.8).toFixed(4));
+        const freshness = computeFreshnessScore(validFromDate, timeScope);
+        const reliability = computeReliabilityScore(row.source, row.metadata || {});
 
-      // Score formula: 50% Vector Sim, 30% Freshness, 20% Reliability
-      const weightVector = timeScope === 'current' ? 0.5 : 0.7;
-      const weightFreshness = timeScope === 'current' ? 0.3 : 0.1;
-      const weightReliability = 0.2;
+        // Score formula: 50% Vector Sim, 30% Freshness, 20% Reliability
+        const weightVector = timeScope === 'current' ? 0.5 : 0.7;
+        const weightFreshness = timeScope === 'current' ? 0.3 : 0.1;
+        const weightReliability = 0.2;
 
-      const hybridScore = parseFloat(
-        (vecSim * weightVector + freshness * weightFreshness + reliability * weightReliability).toFixed(4)
-      );
+        const hybridScore = parseFloat(
+          (vecSim * weightVector + freshness * weightFreshness + reliability * weightReliability).toFixed(4)
+        );
 
-      return {
-        id: row.id,
-        source: row.source,
-        sourceType: row.source_type,
-        datasetId: row.dataset_id,
-        title: row.title,
-        content: row.content,
-        structuredData: row.structured_data || {},
-        metadata: row.metadata || {},
-        validFrom: validFromDate.toISOString(),
-        observedAt: new Date(row.observed_at || validFromDate).toISOString(),
-        retrievedAt: new Date(row.retrieved_at || Date.now()).toISOString(),
-        vectorSimilarity: vecSim,
-        freshnessScore: freshness,
-        reliabilityScore: reliability,
-        hybridScore,
-        ageString: formatAgeString(validFromDate),
-        isFresh: freshness > 0.7,
-        isMock: Boolean(row.metadata?.isMock),
-      };
-    });
+        return {
+          id: row.id,
+          source: row.source,
+          sourceType: row.source_type,
+          datasetId: row.dataset_id,
+          title: row.title,
+          content: row.content,
+          structuredData: row.structured_data || {},
+          metadata: row.metadata || {},
+          validFrom: validFromDate.toISOString(),
+          observedAt: new Date(row.observed_at || validFromDate).toISOString(),
+          retrievedAt: new Date(row.retrieved_at || Date.now()).toISOString(),
+          vectorSimilarity: vecSim,
+          freshnessScore: freshness,
+          reliabilityScore: reliability,
+          hybridScore,
+          ageString: formatAgeString(validFromDate),
+          isFresh: freshness > 0.7,
+          isMock: Boolean(row.metadata?.isMock),
+        };
+      })
+      .filter((r) => r.hybridScore >= 0.45); // Rule #9: Minimum relevance threshold filter
 
     // Sort by hybrid score
     scored.sort((a, b) => b.hybridScore - a.hybridScore);

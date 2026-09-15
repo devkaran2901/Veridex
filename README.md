@@ -1,35 +1,40 @@
-# Veridex: Agentic RAG System over Continuously Updated Live Data with Long-Term Memory
+# Veridex — AI Research & Intelligence Platform for Live Data
 
-**Veridex** is an advanced **Agentic RAG Engine** built with **React (Vite + Tailwind CSS)**, **Node.js (Express + TypeScript)**, **LangGraph.js**, **PostgreSQL with `pgvector`**, and **Socket.IO** for real-time agent execution streaming.
+> **Ask questions. Research live data. Get evidence-backed answers.**
 
-Unlike basic chatbots that blindly perform vector search or call direct API tools on every query, Veridex implements a **Continuously Updated Live Knowledge Layer**. Live government data (IMD weather feeds, data.gov.in datasets, NDMA advisories) is continuously ingested, validated, deduplicated via SHA-256, versioned, and indexed into PostgreSQL `knowledge_records`. An **LLM Structured Planner** formulates typed retrieval plans and executes hybrid vector + parameterized SQL queries with freshness decay scoring.
+**Veridex** is an **Agentic RAG System over Continuously Updated External Data**, featuring document retrieval, long-term user memory, freshness-aware hybrid retrieval, versioned knowledge snapshots, custom REST/JSON API connectors, and zero-hallucination grounded synthesis.
+
+Built with **React (Vite + Tailwind CSS)**, **Node.js (Express + TypeScript)**, **LangGraph.js**, **PostgreSQL with `pgvector`**, and **Socket.IO** for real-time agent execution streaming.
 
 ---
 
 ## 1. System Architecture
 
+Veridex enforces the strict architectural pipeline:
+`SOURCE ↓ INGEST ↓ KNOWLEDGE LAYER ↓ RETRIEVE ↓ AGENT ↓ ANSWER`
+
 ```
-USER QUERY
-    │
-    ▼
+USER QUESTION
+     │
+     ▼
 ┌───────────────────────────────┐
 │     LLM STRUCTURED PLANNER    │
-│  (RetrievalPlan Generator)    │
+│   (Query Intent & Routing)    │
 └───────────────┬───────────────┘
-                │ Typed Retrieval Plan
+                │ Typed Retrieval Plan (datasetIds, timeScope, retrievalMode)
   ┌─────────────┼───────────────┬─────────────────┐
   ▼             ▼               ▼                 ▼
-Dataset       Live Knowledge   Static RAG        Memory
-Discovery     Layer Search     (PDF Chunks)      Layer Search
+Dataset       Live Knowledge   Static RAG        User Memory
+Discovery     Layer Search     (PDF Chunks)      (User Preferences)
 (data.gov.in) (pgvector/SQL)   (pgvector)        (pgvector)
   │             │               │                 │
   └─────────────┼───────────────┴─────────────────┘
                 ▼
   ┌──────────────────────────┐
   │ CONTINUOUS LIVE INGESTION│ ◄── Background Scheduler Worker
-  │ Provider ──► Normalizer  │ (IMD, data.gov.in, NDMA)
+  │ Source ──► Normalizer    │ (data.gov.in, Connected REST APIs)
   │ ──► Validator ──► Dedupe │
-  │ (SHA256) ──► Versioning  │
+  │ (SHA-256) ──► Versioning │
   └─────────────┬────────────┘
                 ▼
   ┌──────────────────────────┐
@@ -51,75 +56,65 @@ Discovery     Layer Search     (PDF Chunks)      Layer Search
   │ + Traceable Citations    │
   └─────────────┬────────────┘
                 ▼
-         Grounded Response + Sources + Data Age + Trace
+         Grounded Answer + Sources + Freshness Score + Execution Trace
 ```
 
 ---
 
-## 2. Technology Stack
+## 2. Key Architectural Features
+
+1. **Central Knowledge Layer**:
+   All external data (`data.gov.in` resources, user-connected REST APIs, uploaded PDFs) is ingested, normalized, validated, deduplicated, versioned, and embedded into PostgreSQL `knowledge_records`. An agent reasons over indexed knowledge records rather than bypassing the layer.
+
+2. **No Fake Data & No Error Record Ingestion**:
+   - `DATA_MODE=live` (Default): If a source is unavailable, the system reports **NO DATA** or source error status. Synthetic numbers or fake advisories are never fabricated.
+   - Errors (`DATAGOV_API_KEY required`, HTTP failures) are logged and stored in `data_sources.last_error`, never inserted into `knowledge_records` as semantic evidence.
+
+3. **Real `data.gov.in` First-Class Source**:
+   Connects to official `data.gov.in` Open Government Data Portal India using `DATAGOV_API_KEY`, supporting live catalog search (`/catalog/search`) and actual resource API record fetching (`/resource/{resource_id}`).
+
+4. **Connected User Custom REST APIs**:
+   Users can connect any public or authenticated REST/JSON endpoint. Veridex auto-detects schema, previews records, encrypts credentials, and ingests records into `knowledge_records` with scheduled background sync.
+
+5. **Change Detection & Historical Versioning**:
+   SHA-256 content hashing detects updates. Changed records increment `version = version + 1` and preserve previous version snapshots with `valid_until` timestamps, enabling temporal comparison queries (*"What changed since yesterday?"*).
+
+6. **Freshness & Multi-Mode Retrieval**:
+   - **Semantic RAG**: Cosine similarity over vector embeddings (`vector(1536)`).
+   - **Structured SQL**: Parameterized SQL queries over `structured_data` fields.
+   - **Hybrid Score**: `(Vector Sim * 0.5) + (Freshness * 0.3) + (Source Reliability * 0.2)`.
+   - **Dataset-Aware**: Constrains search to selected dataset IDs (`datasetIds`).
+
+7. **Structured Evidence Evaluation**:
+   Multi-metric evaluation assessing relevance score, freshness decay, and source quality before synthesizing an answer. If evidence is missing, the agent honestly states that the requested information is not available in the connected knowledge sources.
+
+8. **Security & Ownership**:
+   Enforces user ownership (`user_id`) on custom data sources and validates `CREDENTIAL_ENCRYPTION_KEY` in production environments.
+
+---
+
+## 3. Technology Stack
 
 | Layer | Technology | Purpose |
 | :--- | :--- | :--- |
-| **Frontend** | React 18, Vite, Tailwind CSS, Lucide Icons | Glassmorphism Dashboard with real-time execution trace panel |
-| **Backend** | Node.js, Express.js, TypeScript | Modular REST API and WebSocket event dispatching |
-| **Agent Engine** | LangGraph.js, LangChain.js, OpenAI / Groq LLMs | State machine workflow & structured LLM retrieval planning |
+| **Frontend** | React 18, Vite, Tailwind CSS, Lucide Icons | Neo-brutalist dashboard with real-time trace execution panel |
+| **Backend** | Node.js, Express.js, TypeScript | Modular REST API and WebSocket event dispatcher |
+| **Agent Engine** | LangGraph.js, LangChain.js, Groq / OpenAI LLMs | State machine workflow & structured LLM retrieval planner |
 | **Vector DB** | PostgreSQL 16 + `pgvector` extension | Vector embeddings storage (`vector(1536)`) with HNSW indexes |
-| **Live Ingestion** | IMD Weather, data.gov.in catalog, NDMA Advisories | Continuous background worker sync & SHA-256 deduplication |
+| **Data Ingestion** | data.gov.in OGD Platform, Custom REST APIs | Continuous background worker sync & SHA-256 deduplication |
 | **Real-Time** | Socket.IO | Streaming intermediate tool execution steps & latencies |
 | **DevOps** | Docker, Docker Compose | Containerized database infrastructure |
 
 ---
 
-## 3. Key Architectural Features
-
-1. **Live Knowledge Layer as Central Concept**:
-   External government data enters PostgreSQL `knowledge_records` via continuous ingestion workers. Agent reasoning operates over the indexed knowledge layer rather than raw direct API tools.
-
-2. **Strict Mode Boundaries (`DATA_MODE=live` vs `DATA_MODE=demo`)**:
-   - `DATA_MODE=live` (Default): If DB/APIs return no evidence, the system honestly reports that data is unavailable. No fake numbers or mock fallback records are fabricated.
-   - `DATA_MODE=demo`: Mock providers may be used for testing, and all mock records are prominently tagged `[DEMO DATA]`.
-
-3. **Data.gov.in Official Catalog & Dataset Discovery**:
-   Assisted by LLM intent generation, searches official data.gov.in endpoints (`https://api.data.gov.in/catalog/search` & `/resource/{id}`). Preserves schema, publisher, geographic, and temporal metadata.
-
-4. **Change Detection & Historical Version Snapshots**:
-   SHA-256 content hashing detects updates. Changed records increment `version = version + 1` and preserve previous version snapshots with `valid_until` timestamps, enabling temporal comparison queries ("What changed since yesterday?").
-
-5. **Multi-Mode Freshness-Aware Retrieval**:
-   - **Semantic Vector RAG**: Cosine similarity over document & advisory text.
-   - **Structured SQL**: Parameterized SQL queries for district rainfall/numerical rankings (`structured_data->>'rainfallMm'`).
-   - **Hybrid Score**: `(Vector Sim * 0.5) + (Freshness * 0.3) + (Source Reliability * 0.2)`.
-
-6. **User Memory Isolation**:
-   User preferences are stored separately in `memories` table and retrieved ONLY when query intent demands personal context ("my travel preferences"). Prevents memory contamination.
-
----
-
-## 4. API Documentation
-
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/api/health` | System health check & `pgvector` connectivity test |
-| `POST` | `/api/chat` | Main chat endpoint running LangGraph workflow |
-| `GET` | `/api/ingestion/status` | Current data mode (`live`/`demo`), worker interval & record stats |
-| `GET` | `/api/ingestion/datasets` | List registered government datasets and last sync stats |
-| `GET` | `/api/ingestion/records` | List canonical knowledge records with freshness & versions |
-| `POST` | `/api/ingestion/sync` | Trigger manual live data ingestion pipeline sync |
-| `POST` | `/api/documents/upload` | Upload and index PDF or TXT document |
-| `POST` | `/api/documents/search` | Direct vector search over static document RAG |
-| `GET` | `/api/memories` | List long-term user memories |
-| `POST` | `/api/memories` | Save a new long-term user preference |
-
----
-
-## 5. Setup & Running Instructions
+## 4. Setup & Running Instructions
 
 ### Prerequisites
 - Node.js (v18+)
 - Docker & Docker Desktop
 
 ### 1. Environment Configuration (`.env`)
-Copy `.env.example` to `.env` in the project root:
+Create or edit `.env` in project root:
 ```bash
 PORT=5000
 NODE_ENV=development
@@ -131,12 +126,15 @@ DB_USER=veridex_user
 DB_PASSWORD=veridex_password
 DB_NAME=veridex_db
 
-# Choose LLM Provider: Groq (Free) or OpenAI
+# LLM Provider: Groq (Free) or OpenAI
 GROQ_API_KEY=gsk_your_free_groq_api_key_here
 OPENAI_API_KEY=
 
-# data.gov.in API Key
+# data.gov.in Official API Key
 DATAGOV_API_KEY=
+
+# Secret Encryption Key for Data Source Credentials
+CREDENTIAL_ENCRYPTION_KEY=veridex-default-secret-key-32chars!!
 
 # Data Mode (live = strict no-fake-data mode; demo = allows mock test data)
 DATA_MODE=live
@@ -166,23 +164,8 @@ npm run dev
 ```
 *(Runs on `http://localhost:5173`)*
 
-### 5. Run Automated Evaluation Benchmark Suite
+### 5. Run Automated Architectural E2E Test Suite
 ```bash
 cd server
-npm run eval
+npx tsx src/evaluation/e2eTest.ts
 ```
-*(Executes all 8 mandatory benchmark user query test cases)*
-
----
-
-## 6. Mandatory 8 User Test Query Benchmark
-
-Run `npm run eval` to verify all 8 test cases:
-1. `What is the current rainfall in Punjab?` → Dataset discovery → Live Knowledge Layer search
-2. `Which Punjab district has received the highest rainfall recently?` → Structured SQL query
-3. `What does the government recommend during heavy rainfall?` → Semantic RAG advisory
-4. `What changed in Punjab rainfall since yesterday?` → Comparison mode & version snapshot diff
-5. `What are my travel preferences?` → Long-Term User Memory retrieval
-6. `Considering current rainfall and my travel preferences, should I travel?` → Live Knowledge + Memory reasoning
-7. `What happened in Punjab rainfall last year?` → Historical scope retrieval
-8. `What happens if the government API is unavailable?` → Honest no-evidence state (No fabrication)

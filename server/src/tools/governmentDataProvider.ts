@@ -1,6 +1,6 @@
 import { query } from '../database/db';
+import { config } from '../config/env';
 import { ingestLiveRecord } from '../ingestion/ingestionPipeline';
-
 
 export interface GovernmentAdvisory {
   topic: string;
@@ -11,15 +11,33 @@ export interface GovernmentAdvisory {
   bulletins: string[];
   issuedDate: string;
   source: string;
+  isMock?: boolean;
 }
 
 export async function getGovernmentData(
   topic: string,
   location: string = 'National'
 ): Promise<GovernmentAdvisory> {
-  const cacheKey = `gov_${topic.toLowerCase()}_${location.toLowerCase()}`;
+  const isDemo = config.dataMode === 'demo';
 
-  // Check cache
+  if (!isDemo) {
+    // In LIVE mode, do not fabricate synthetic government advisories
+    return {
+      topic,
+      location,
+      issuingAuthority: 'Unconnected Live Feed',
+      advisoryLevel: 'Info',
+      summary: `No live government advisory feed connected for "${topic}" in ${location}.`,
+      bulletins: [],
+      issuedDate: new Date().toISOString().split('T')[0],
+      source: 'Veridex System',
+      isMock: false,
+    };
+  }
+
+  const cacheKey = `gov_demo_${topic.toLowerCase()}_${location.toLowerCase()}`;
+
+  // Check cache for demo data
   try {
     const cacheRes = await query(
       `SELECT data FROM live_data_cache WHERE cache_key = $1 AND expires_at > CURRENT_TIMESTAMP`,
@@ -32,29 +50,26 @@ export async function getGovernmentData(
     console.warn('Gov data cache query failed:', err);
   }
 
-  // Simulated IMD / Disaster Response Portal API response
+  // Explicit DEMO Mode synthetic data (clearly tagged as DEMO/MOCK DATA)
   const isFlood = topic.toLowerCase().includes('flood') || topic.toLowerCase().includes('rain') || topic.toLowerCase().includes('travel');
 
   const advisory: GovernmentAdvisory = {
     topic,
     location,
-    issuingAuthority: 'National Disaster Management Authority (NDMA) & IMD',
-    advisoryLevel: isFlood ? 'Severe' : 'Info',
+    issuingAuthority: '[DEMO / SYNTHETIC DATA] Veridex Advisory Simulator',
+    advisoryLevel: isFlood ? 'Warning' : 'Info',
     summary: isFlood
-      ? `Official NDMA Flood & Weather Bulletin for ${location}: Heavy to extremely heavy rainfall expected over the next 24-48 hours. Risk of urban inundation and road transit disruption.`
-      : `Standard Transit & Public Safety Bulletin for ${location}. All transport services operating under normal schedules.`,
+      ? `[DEMO DATA] Simulated Heavy Rain Bulletin for ${location}: Test scenario for urban transit planning.`
+      : `[DEMO DATA] Simulated Safety Bulletin for ${location}. Test scenario.`,
     bulletins: isFlood
-      ? [
-          'Low-lying underpasses in urban corridors subject to waterlogging.',
-          'Inter-city rail transport operating with precautionary speed limits.',
-          'Citizens advised to restrict non-essential road travel during storm hours.',
-        ]
-      : ['No major disaster advisories active for this sector.'],
+      ? ['[DEMO DATA] Test bulletin: Waterlogging simulated in low-lying zones.']
+      : ['[DEMO DATA] No active advisories in test scenario.'],
     issuedDate: new Date().toISOString().split('T')[0],
-    source: 'data.gov.in / NDMA Portal API',
+    source: '[DEMO DATA] Veridex Test Provider',
+    isMock: true,
   };
 
-  // Cache for 30 minutes
+  // Cache demo data
   try {
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
     await query(
@@ -67,30 +82,30 @@ export async function getGovernmentData(
     console.warn('Gov data cache write failed:', err);
   }
 
-  // Ingest into Knowledge Layer (pgvector + knowledge_records)
+  // Ingest demo record only in DEMO mode with isMock = true
   try {
     await ingestLiveRecord({
-      source: 'NDMA (National Disaster Management Authority)',
+      source: '[DEMO DATA] Veridex Simulator',
       sourceType: 'api_feed',
-      datasetId: 'ndma_flood_advisory_2026',
-      title: `NDMA Advisory Bulletin - ${advisory.topic} (${advisory.location})`,
-      content: `NDMA Official Bulletin (${advisory.issuingAuthority}): ${advisory.summary} Directives: ${advisory.bulletins.join(' ')}`,
+      datasetId: 'demo_advisory_2026',
+      title: `[DEMO DATA] Advisory - ${advisory.topic} (${advisory.location})`,
+      content: `[DEMO DATA] ${advisory.summary} Bulletins: ${advisory.bulletins.join(' ')}`,
       structuredData: {
         topic: advisory.topic,
         location: advisory.location,
         advisoryLevel: advisory.advisoryLevel,
-        bulletins: advisory.bulletins,
+        isMock: true,
       },
       metadata: {
         issuingAuthority: advisory.issuingAuthority,
-        sourceUrl: 'https://ndma.gov.in',
+        isMock: true,
       },
       validFrom: new Date(),
+      isMock: true,
     });
   } catch (err) {
-    // Silent catch for ingestion error
+    // Silent catch
   }
-
 
   return advisory;
 }

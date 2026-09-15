@@ -2,7 +2,6 @@ import { query } from '../database/db';
 import { config } from '../config/env';
 import { ingestLiveRecord } from '../ingestion/ingestionPipeline';
 
-
 export interface WeatherData {
   location: string;
   temperatureC: number;
@@ -12,6 +11,7 @@ export interface WeatherData {
   precipitationProb: number;
   advisoryAlert?: string;
   source: string;
+  isMock?: boolean;
 }
 
 export interface WeatherProvider {
@@ -19,12 +19,12 @@ export interface WeatherProvider {
 }
 
 /**
- * Real Weather Provider with 3-second timeout guard & fallback
+ * Real Weather Provider with 3-second timeout guard
  */
 export class RealWeatherProvider implements WeatherProvider {
   async getWeather(location: string): Promise<WeatherData> {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout guard
+    const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout guard
 
     try {
       const cleanLoc = encodeURIComponent(location.trim());
@@ -56,18 +56,22 @@ export class RealWeatherProvider implements WeatherProvider {
           ? 'Heavy Rainfall & Waterlogging Alert in place.'
           : undefined,
         source: 'wttr.in Live Weather API',
+        isMock: false,
       };
     } catch (err: any) {
       clearTimeout(timeoutId);
-      console.warn(`⚠️ RealWeatherProvider timed out or failed for ${location}, using fallback adapter:`, err.message);
-      const fallback = new MockWeatherProvider();
-      return fallback.getWeather(location);
+      console.warn(`⚠️ RealWeatherProvider failed for ${location}:`, err.message);
+      if (config.dataMode === 'demo') {
+        const fallback = new MockWeatherProvider();
+        return fallback.getWeather(location);
+      }
+      throw new Error(`Real weather data source unavailable for "${location}": ${err.message}`);
     }
   }
 }
 
 /**
- * Fast Fallback Weather Provider
+ * Explicit DEMO Mode Mock Weather Provider (Strictly Labeled, Used ONLY when DATA_MODE=demo)
  */
 export class MockWeatherProvider implements WeatherProvider {
   async getWeather(location: string): Promise<WeatherData> {
@@ -83,9 +87,10 @@ export class MockWeatherProvider implements WeatherProvider {
       windSpeedKmh: isShimla ? 10 : isDelhi ? 24 : 12,
       precipitationProb: isShimla ? 20 : isDelhi ? 75 : 30,
       advisoryAlert: isDelhi
-        ? 'IMD Red Alert: High probability of severe waterlogging and transit disruption.'
+        ? '[DEMO DATA] Test Alert: High probability of severe waterlogging.'
         : undefined,
-      source: 'Veridex Weather Adapter',
+      source: '[DEMO DATA] Veridex Synthetic Weather Provider',
+      isMock: true,
     };
   }
 }
@@ -113,6 +118,11 @@ export async function getLiveWeather(location: string): Promise<WeatherData> {
   const provider: WeatherProvider = new RealWeatherProvider();
   const weather = await provider.getWeather(location);
 
+  // In LIVE mode, do not ingest mock data
+  if (config.dataMode === 'live' && weather.isMock) {
+    throw new Error('Synthetic mock weather rejected in LIVE mode');
+  }
+
   // 3. Store in PostgreSQL cache for 10 minutes
   try {
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
@@ -129,11 +139,11 @@ export async function getLiveWeather(location: string): Promise<WeatherData> {
   // 4. Ingest live weather record into Knowledge Layer (pgvector + knowledge_records)
   try {
     await ingestLiveRecord({
-      source: 'IMD (India Meteorological Department)',
+      source: weather.source,
       sourceType: 'api_feed',
-      datasetId: 'imd_daily_weather',
-      title: `IMD Weather Observation - ${weather.location}`,
-      content: `IMD Live Weather for ${weather.location}: ${weather.condition}, Temperature ${weather.temperatureC}°C, Humidity ${weather.humidity}%, Rain Chance ${weather.precipitationProb}%. ${weather.advisoryAlert || ''}`,
+      datasetId: 'live_weather_feed',
+      title: `Weather Observation - ${weather.location}`,
+      content: `Live Weather for ${weather.location}: ${weather.condition}, Temperature ${weather.temperatureC}°C, Humidity ${weather.humidity}%, Rain Chance ${weather.precipitationProb}%. ${weather.advisoryAlert || ''}`,
       structuredData: {
         location: weather.location,
         temperatureC: weather.temperatureC,
@@ -141,17 +151,19 @@ export async function getLiveWeather(location: string): Promise<WeatherData> {
         humidity: weather.humidity,
         precipitationProb: weather.precipitationProb,
         advisoryAlert: weather.advisoryAlert || null,
+        isMock: weather.isMock || false,
       },
       metadata: {
         region: weather.location,
-        sourceUrl: 'https://mausam.imd.gov.in',
+        sourceUrl: 'https://wttr.in',
+        isMock: weather.isMock || false,
       },
       validFrom: new Date(),
+      isMock: weather.isMock || false,
     });
   } catch (err) {
     // Ingestion silent catch
   }
-
 
   return weather;
 }
