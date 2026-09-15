@@ -43,10 +43,12 @@ export class RealWeatherProvider implements WeatherProvider {
 
       const data: any = await response.json();
       const current = data.current_condition?.[0];
-      const area = data.nearest_area?.[0]?.areaName?.[0]?.value || location;
+      const rawArea = data.nearest_area?.[0]?.areaName?.[0]?.value;
+      const area = rawArea || location;
+      const displayLocation = location.toLowerCase() === area.toLowerCase() ? area : `${location} (${area})`;
 
       return {
-        location: area,
+        location: displayLocation,
         temperatureC: parseInt(current?.temp_C || '24', 10),
         condition: current?.weatherDesc?.[0]?.value || 'Partly Cloudy',
         humidity: parseInt(current?.humidity || '60', 10),

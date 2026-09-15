@@ -281,6 +281,7 @@ async function executeRetrievalNode(state: AgentState): Promise<Partial<AgentSta
       const records = await searchLiveKnowledgeBase(state.originalQuery, {
         timeScope: plan.timeScope,
         mode: plan.retrievalMode,
+        location: plan.location,
         datasetIds: targetDatasetIds.length > 0 ? targetDatasetIds : undefined,
         limit: 4,
         userId: state.userId,

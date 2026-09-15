@@ -131,6 +131,40 @@ export function computeReliabilityScore(source: string, metadata: Record<string,
 }
 
 /**
+ * Helper to dynamically extract location from user query (e.g. "weather in jhajjar" -> "jhajjar")
+ */
+export function extractLocationFromQuery(queryText: string): string | undefined {
+  if (!queryText || typeof queryText !== 'string') return undefined;
+
+  const q = queryText.trim();
+
+  // Pattern 1: explicit preposition "in / for / at <location>"
+  const prepMatch = q.match(/\b(?:in|for|at)\s+([a-zA-Z\s,]+)$/i);
+  if (prepMatch && prepMatch[1].trim().length >= 2) {
+    const loc = prepMatch[1].replace(/[?!.,]/g, '').trim();
+    const timeStopWords = ['today', 'now', 'currently', 'recent', 'latest', 'this morning', 'this evening', 'tonight'];
+    const cleaned = loc.split(' ').filter(w => !timeStopWords.includes(w.toLowerCase())).join(' ').trim();
+    if (cleaned.length >= 2) return cleaned;
+  }
+
+  // Pattern 2: strip out weather and general query stop words with word boundaries
+  const stopWordsRegex = /\b(weather|temperature|temp|rain|raining|rainfall|forecast|climate|precipitation|today|now|current|recent|this|morning|evening|tonight|in|for|at|of|the|is|it|what|whats|how|show|get|me|tell|please|currently|check|give)\b/gi;
+
+  const clean = q
+    .replace(stopWordsRegex, '')
+    .replace(/[?!.,]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (clean.length >= 2) {
+    const primary = clean.split(',')[0].trim();
+    return primary.length >= 2 ? primary : clean;
+  }
+
+  return undefined;
+}
+
+/**
  * Main Hybrid Freshness-Aware Knowledge Retrieval Engine (FIX #12, #13, #14)
  */
 export async function searchLiveKnowledgeBase(
@@ -141,17 +175,8 @@ export async function searchLiveKnowledgeBase(
   const timeScope = options.timeScope || parseTimeScope(queryText);
   const q = queryText.toLowerCase();
 
-  // Extract location if present in query or options
-  let targetLocation = options.location;
-  if (!targetLocation) {
-    const knownLocations = ['delhi', 'punjab', 'shimla', 'buhana', 'rajasthan', 'ludhiana', 'bhatinda', 'amritsar', 'mumbai'];
-    for (const loc of knownLocations) {
-      if (q.includes(loc)) {
-        targetLocation = loc;
-        break;
-      }
-    }
-  }
+  // Extract location dynamically if present in query or options
+  const targetLocation = options.location || extractLocationFromQuery(queryText);
 
   // If query is asking about live weather, trigger real-time weather tool fetch & ingestion first
   if (q.includes('weather') || q.includes('rain') || q.includes('temperature') || q.includes('climate')) {
@@ -283,6 +308,8 @@ export async function searchLiveKnowledgeBase(
     }
 
     // 3. Score records combining Vector Similarity + Freshness Decay + Source Reliability
+    const locLower = targetLocation ? targetLocation.toLowerCase() : null;
+
     const scored: HybridKnowledgeRecordResult[] = res.rows
       .map((row: any) => {
         const validFromDate = new Date(row.valid_from || row.observed_at || Date.now());
@@ -320,7 +347,19 @@ export async function searchLiveKnowledgeBase(
           isMock: Boolean(row.metadata?.isMock),
         };
       })
-      .filter((r) => r.hybridScore >= 0.45); // Rule #9: Minimum relevance threshold filter
+      .filter((r) => {
+        // Enforce score threshold cutoff
+        if (r.hybridScore < 0.45) return false;
+
+        // Rule #18: If a target location was specified, record MUST match that location
+        if (locLower) {
+          const recText = `${r.title} ${r.content} ${JSON.stringify(r.structuredData)} ${JSON.stringify(r.metadata)}`.toLowerCase();
+          if (!recText.includes(locLower)) {
+            return false;
+          }
+        }
+        return true;
+      });
 
     // Sort by hybrid score
     scored.sort((a, b) => b.hybridScore - a.hybridScore);
