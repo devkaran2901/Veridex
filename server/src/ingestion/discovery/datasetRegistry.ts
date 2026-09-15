@@ -135,6 +135,18 @@ export class DataGovProvider implements GovernmentDataProvider {
       updateFrequency: 'Annual / Seasonal',
       temporalCoverage: 'Historical & Recent',
     },
+    {
+      id: 'datagov_resource_9a362ec2',
+      name: 'Data.gov.in Government Open Resource (9a362ec2)',
+      resourceId: '9a362ec2-2cfc-4e08-8c74-7926b2159a69',
+      publisher: 'Open Government Data (OGD) Platform India',
+      description: 'Official open government dataset resource from data.gov.in portal.',
+      geography: 'India',
+      category: 'general' as const,
+      schema: ['id', 'state', 'district', 'metric', 'value', 'updated_at'],
+      updateFrequency: 'Real-Time / Periodical',
+      temporalCoverage: 'Current & Recent',
+    },
   ];
 
   async searchDatasets(queryText: string): Promise<DatasetMetadata[]> {

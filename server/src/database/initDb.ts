@@ -6,7 +6,12 @@ export async function initDatabase() {
   try {
     console.log('🔄 Initializing PostgreSQL schema & migrations...');
 
-    // Run column migrations first to ensure old DB instances have all columns
+    // Execute schema.sql file first to ensure base tables like users exist
+    const schemaPath = path.join(__dirname, 'schema.sql');
+    const sql = fs.readFileSync(schemaPath, 'utf8');
+    await pool.query(sql);
+
+    // Run column migrations to ensure existing tables are updated with all columns
     await pool.query(`
       CREATE TABLE IF NOT EXISTS data_sources (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -36,11 +41,6 @@ export async function initDatabase() {
       ALTER TABLE knowledge_records ADD COLUMN IF NOT EXISTS valid_until TIMESTAMP WITH TIME ZONE;
       ALTER TABLE knowledge_records ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 1;
     `);
-
-    // Execute schema.sql file
-    const schemaPath = path.join(__dirname, 'schema.sql');
-    const sql = fs.readFileSync(schemaPath, 'utf8');
-    await pool.query(sql);
 
     console.log('✅ PostgreSQL database schema & migrations initialized successfully!');
   } catch (err: any) {

@@ -1,6 +1,7 @@
 import { query } from '../database/db';
 import { generateEmbedding } from '../services/embedding';
 import { config } from '../config/env';
+import { getLiveWeather } from '../tools/weatherProvider';
 
 export type TimeScope = 'current' | 'recent' | 'historical' | 'comparison';
 
@@ -136,6 +137,19 @@ export async function searchLiveKnowledgeBase(
   const limit = options.limit || 4;
   const timeScope = options.timeScope || parseTimeScope(queryText);
   const q = queryText.toLowerCase();
+
+  // If query is asking about live weather, trigger real-time weather tool fetch & ingestion first
+  if (q.includes('weather') || q.includes('rain') || q.includes('temperature') || q.includes('climate')) {
+    try {
+      const locClean = queryText
+        .replace(/weather|temperature|rain|forecast|today|now|in|for|at/gi, '')
+        .trim();
+      const targetLocation = locClean.length > 2 ? locClean : 'Buhana, Rajasthan';
+      await getLiveWeather(targetLocation);
+    } catch (err) {
+      // Catch weather fetch errors silently
+    }
+  }
 
   const isStructuredQuery =
     options.mode === 'structured' ||

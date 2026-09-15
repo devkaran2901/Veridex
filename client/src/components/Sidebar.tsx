@@ -85,17 +85,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onNew
           })}
         </nav>
       </div>
-
-      {/* Bauhaus Footer Card */}
-      <div className="p-3 bg-white border-2 border-[#1c1917] rounded-lg text-[#1c1917]">
-        <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider mb-1">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#e63946] inline-block" />
-          BTech Project
-        </div>
-        <p className="text-[10px] font-bold text-[#1c1917]/70 leading-tight">
-          LangGraph RAG over Live APIs, pgvector & Memory
-        </p>
-      </div>
     </aside>
   );
 };
